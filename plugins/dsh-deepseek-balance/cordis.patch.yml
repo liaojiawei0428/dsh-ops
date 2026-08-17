@@ -1,0 +1,6 @@
+# dsh-deepseek-balance bundle patch — inserts one dual-face plugin row: the
+# Host half registers the /api/dsh/deepseek-balance route, and the browser
+# half (declared via package.json `dsh.client`) renders the header capsule.
+- insert:
+    - id: deepseek-balance
+      name: 'dsh-deepseek-balance'
