@@ -22,6 +22,20 @@ DSH 运维目录（D:\GongJu\DSH-ops）
   （node_modules 链接和构建产物会损坏）。版本一致靠两边各自运行「更新DSH.bat」，
   对比 check-update 输出的 commit 短 SHA 即可确认。
 
+  ▶ 两套同步标准（双轨，互不干扰）：
+     ① 官方更新 — 仓库 deepseek-ai/deepseek-harness（对象: D:\GongJu\Deepseek_DSH）
+        每台电脑【各自】双击「更新DSH.bat」完成 pull+install+build+重启；
+        官方发版后两台都跑一次，对比启动横幅 commit 短 SHA 确认对齐。
+        不要用网盘同步官方目录（node_modules 链接和构建产物会损坏）。
+     ② 个人更新 — 仓库 liaojiawei0428/dsh-ops（对象: 本目录全部自定义）
+        改动的电脑: git add -A; git commit -m "..."; git push
+        其他电脑:   git pull
+        生效方式: 脚本/文档即时生效; 插件代码需重启服务;
+        settings 模板需手动覆盖到 ~\.dsh\settings.yaml 后重启。
+     ③ 不参与同步（各机私有）: API Key（~\.dsh\.credentials.yaml，
+        网页里填一次即可）、会话历史（~\.dsh\sessions）、
+        网页里改的本机设置（如需两台一致，改 config\settings.yaml 再走②）。
+
   ▶ 新电脑首次安装（一次性）：
      1) 安装 Node.js LTS (v22+)、git、pnpm（npm install -g pnpm）
      2) git clone 本私有仓库到 D:\GongJu\DSH-ops（GitHub 需开 VPN）
@@ -31,10 +45,6 @@ DSH 运维目录（D:\GongJu\DSH-ops）
         自动保存到本机 ~\.dsh\.credentials.yaml，之后无需再填）
      5) 之后与旧电脑用法完全相同（启动DSH.bat / 更新DSH.bat）
      注意：两台电脑都使用 D:\GongJu 路径约定（插件以绝对路径链接）。
-
-  ▶ 日常双向同步：
-     改了插件/脚本/settings 模板后：git add -A; git commit -m "..."; git push
-     另一台电脑：git pull（然后按需重跑安装DSH.bat 或手动应用变更）
 
 【手动操作】
   停止服务：
