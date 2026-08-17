@@ -1,0 +1,19 @@
+{
+  "name": "dsh-locale-language",
+  "version": "0.1.0",
+  "description": "Global DSH prompt instruction that follows the DSH UI locale (zh/en) for chain-of-thought and replies",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

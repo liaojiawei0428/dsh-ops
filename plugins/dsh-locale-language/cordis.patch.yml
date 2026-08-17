@@ -1,0 +1,6 @@
+# dsh-locale-language bundle patch — inserts one global plugin row that
+# registers a dynamic system-prompt section + runtime context following the
+# DSH UI locale (settings ns `locale`, preference zh|en).
+- insert:
+    - id: locale-language
+      name: 'dsh-locale-language'

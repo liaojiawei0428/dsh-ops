@@ -1,0 +1,40 @@
+ui-onboarding:
+  welcomeNoticeVersion: 2026-08-13.1
+agent-default-model:
+  provider: zai
+  model: glm-5.3
+agent-presets:
+  default: cordis
+permission:
+  defaultPreset: danger-full-access
+ui-theme:
+  preference: light
+llm-pi-ai:
+  providers:
+    zai:
+      apiKeyEnv: ZAI_API_KEY
+      models:
+        - id: glm-4.5-air
+          name: GLM-4.5-Air
+          contextWindow: 131072
+          maxTokens: 98304
+        - id: glm-4.7
+          name: GLM-4.7
+          contextWindow: 204800
+          maxTokens: 131072
+        - id: glm-5-turbo
+          name: GLM-5-Turbo
+          contextWindow: 200000
+          maxTokens: 131072
+        - id: glm-5.1
+          name: GLM-5.1
+          contextWindow: 200000
+          maxTokens: 131072
+        - id: glm-5.2
+          name: GLM-5.2
+          contextWindow: 1000000
+          maxTokens: 131072
+        - id: glm-5.3
+          name: GLM-5.3
+          contextWindow: 200000
+          maxTokens: 131072
