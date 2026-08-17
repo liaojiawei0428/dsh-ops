@@ -25,10 +25,10 @@ DSH 运维目录（D:\GongJu\DSH-ops）
   ▶ 新电脑首次安装（一次性）：
      1) 安装 Node.js LTS (v22+)、git、pnpm（npm install -g pnpm）
      2) git clone 本私有仓库到 D:\GongJu\DSH-ops（GitHub 需开 VPN）
-     3) 从旧电脑把 C:\Users\<用户名>\.dsh\.credentials.yaml 用 U 盘/私有渠道
-        拷到新电脑同位置（API 凭据绝不进 git 仓库！）
-     4) 双击本目录「安装DSH.bat」：自动克隆官方源码 → pnpm install → 构建 →
+     3) 双击本目录「安装DSH.bat」：自动克隆官方源码 → pnpm install → 构建 →
         注册 locale 插件 → 复制 settings.yaml → 建桌面快捷方式
+     4) 首次启动后在网页设置里填写一次 API Key（出于安全不随仓库分发，
+        自动保存到本机 ~\.dsh\.credentials.yaml，之后无需再填）
      5) 之后与旧电脑用法完全相同（启动DSH.bat / 更新DSH.bat）
      注意：两台电脑都使用 D:\GongJu 路径约定（插件以绝对路径链接）。
 

@@ -1,7 +1,7 @@
 ﻿# setup.ps1 — 在新电脑上一键部署你自己的 DSH（家用/办公室各运行一次）
 # 前提：已安装 Node.js / pnpm / git；本目录(DSH-ops)已 clone 到 D:\GongJu\DSH-ops
 # 用法：双击 安装DSH.bat（可带参数：.\setup.ps1 -RepoDir 'D:\GongJu\Deepseek_DSH'）
-# 凭据(.credentials.yaml)不含在本仓库中，需从旧电脑手动拷贝一次，见末尾提示。
+# API Key 不随仓库分发（安全考虑）：装好后在 DSH 网页设置里自行填写一次。
 
 param(
     [string]$RepoDir = 'D:\GongJu\Deepseek_DSH'
@@ -115,10 +115,9 @@ Write-Host '==================================================' -ForegroundColor
 $cred = Join-Path $dshHome '.credentials.yaml'
 if (-not (Test-Path $cred)) {
     Write-Host ''
-    Write-Host '[重要] 还差最后一步: API 凭据不随仓库分发, 需要从旧电脑拷贝一次' -ForegroundColor Yellow
-    Write-Host ('  旧电脑: ' + 'C:\Users\<用户名>\.dsh\.credentials.yaml') -ForegroundColor Yellow
-    Write-Host ('  拷贝到: ' + $cred) -ForegroundColor Yellow
-    Write-Host '  (用 U 盘/私有渠道, 不要通过网盘或聊天工具明文传输)' -ForegroundColor Yellow
+    Write-Host '[下一步] API Key 不随仓库分发, 需在网页里填写一次:' -ForegroundColor Yellow
+    Write-Host '  双击桌面 "DSH 启动" 打开页面 → 设置 → 填入 DeepSeek / 智谱 API Key' -ForegroundColor Yellow
+    Write-Host ('  填好自动保存到本机 ' + $cred + ', 之后无需再填') -ForegroundColor Yellow
 }
 Write-Host ''
 Write-Host '日常使用: 双击桌面 "DSH 启动" 或 DSH-ops\启动DSH.bat' -ForegroundColor Green
