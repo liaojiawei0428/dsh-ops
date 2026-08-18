@@ -1,15 +1,34 @@
 # dsh-deepseek-balance
 
-DSH 系统组件：在会话头部工具条（Session log 导出按钮旁）常驻显示 DeepSeek
-账户余额胶囊，点击立即刷新，**每 5 分钟自动静默刷新**（不闪加载态），
-余额 ≤ ¥10 橙色警示，悬停显示明细。
+DSH 系统组件：在会话头部工具条（Session log 导出按钮旁）显示两个胶囊：
 
-- **Host 半端**（`index.js`）：注册 `/api/dsh/deepseek-balance` 路由，
-  用 `credentials` 服务解析 `DEEPSEEK_API_KEY`，原生 `fetch` 调用官方
-  `https://api.deepseek.com/user/balance`，60 秒缓存。
+1. **余额胶囊**：DeepSeek 账户余额，点击立即刷新，**每 5 分钟自动静默刷新**，
+   余额 ≤ ¥10 橙色警示，悬停显示明细。
+2. **版本胶囊**：`DSH版本号：xxx`，悬停显示本地 commit 与检查状态；
+   **每 1 小时自动检查官方仓库更新**（host 定时器），发现更新后胶囊变为
+   高亮脉动的 **「有新版本」**，点击立即启动自动更新（分离进程运行
+   `update-dsh.ps1`，完成后服务自动重启，刷新页面即见新版）。
+
+- **Host 半端**（`index.js`）：
+  - `/api/dsh/deepseek-balance`：余额路由，`credentials` 服务解析
+    `DEEPSEEK_API_KEY`，官方 `https://api.deepseek.com/user/balance`，60 秒缓存。
+  - `/api/dsh/repo-status`：版本检查路由，读本地 `package.json` 版本号，
+    经系统代理 `git fetch origin` 对比 `HEAD` 与 `origin/master`，
+    结果缓存 1 小时（`?force=1` 立即重查），并发请求复用同一次 fetch。
+  - `/api/dsh/update-now`：POST 启动分离的自动更新进程
+    （`pwsh.exe -File update-dsh.ps1`，detached + unref，更新脚本自带全套
+    守卫：干净检查/备份/构建/组合预检/插件闸门/健康检查）。
 - **浏览器半端**（`client.js`）：手写 client bundle，注册
-  `conversation.session.header.utilities` 胶囊，`fetch` 本地路由取数；
-  自动刷新间隔 `REFRESH_INTERVAL_MS = 5 * 60 * 1000`（5 分钟）。
+  `conversation.session.header.utilities` 两个胶囊（余额 order 100、
+  版本 order 101），余额 5 分钟轮询、版本 5 分钟轮询（host 控制真实检查节奏）。
+
+## 配置
+
+| 字段 | 默认 | 说明 |
+|---|---|---|
+| `repoDir` | `D:/GongJu/Deepseek_DSH` | DSH 主仓库路径（版本检查目标） |
+| `opsDir` | `D:/GongJu/DSH-ops` | 运维脚本目录（`update-dsh.ps1` 所在） |
+| `checkIntervalMs` | `3600000` | 官方仓库检查间隔（1 小时） |
 
 ## 在新电脑上部署（同步 DSH 插件）
 

@@ -26,6 +26,8 @@ window.__ModuleLoader__.load({
       '.dsbal-low .dsbal-amount { color: var(--dsw-alias-state-warn-label); }',
       '.dsbal-muted { color: var(--dsw-alias-label-dimmed); }',
       '.dsbal-err { color: var(--dsw-alias-state-error-secondary); }',
+      '.dsbal-update { border-color: var(--dsw-alias-state-warn-label); color: var(--dsw-alias-state-warn-label); font-weight: 600; animation: dsbal-pulse 2s ease-in-out infinite; }',
+      '@keyframes dsbal-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }',
     ].join('\n')
 
     /** Map the API currency code to a display symbol. */
@@ -98,7 +100,104 @@ window.__ModuleLoader__.load({
       }, inner)
     }
 
-    /** Browser-half entry: register the capsule into the header utilities row. */
+    /** Poll interval for the repo-status route (host enforces the real check cadence). */
+    const REPO_STATUS_INTERVAL_MS = 5 * 60 * 1000
+
+    /** Query the Host repo-status route; resolves the parsed JSON payload. */
+    function fetchRepoStatus(force) {
+      return window.fetch('/api/dsh/repo-status' + (force ? '?force=1' : ''), { headers: { accept: 'application/json' } })
+        .then((res) => res.json())
+        .catch((err) => ({ checkError: String(err && err.message ? err.message : err) }))
+    }
+
+    /** Trigger the detached updater via the Host route. */
+    function triggerUpdate() {
+      return window.fetch('/api/dsh/update-now', { method: 'POST', headers: { accept: 'application/json' } })
+        .then((res) => res.json())
+        .catch((err) => ({ ok: false, error: String(err && err.message ? err.message : err) }))
+    }
+
+    /** The version capsule next to the balance capsule: DSH version + update prompt. */
+    function VersionHeader() {
+      const [state, setState] = React.useState({ status: 'loading' })
+
+      const check = (force) => {
+        if (force !== true) setState({ status: 'loading' })
+        fetchRepoStatus(force).then((res) => {
+          if (res && typeof res.version === 'string') {
+            setState({
+              status: 'ok',
+              version: res.version,
+              hasUpdate: res.hasUpdate === true,
+              latest: res.latest,
+              current: res.current,
+              checkError: res.checkError,
+            })
+          } else {
+            setState({ status: 'error', message: res && res.error ? res.error : '未知错误' })
+          }
+        })
+      }
+
+      React.useEffect(() => {
+        check(false)
+        const timer = setInterval(() => { check(true) }, REPO_STATUS_INTERVAL_MS)
+        return () => clearInterval(timer)
+      }, [])
+
+      const [updating, setUpdating] = React.useState(false)
+
+      const onClick = () => {
+        if (updating) return
+        if (state.status === 'ok' && state.hasUpdate) {
+          setUpdating(true)
+          triggerUpdate().then((res) => {
+            if (res && res.ok === true) {
+              setState({ status: 'updating' })
+            } else {
+              setUpdating(false)
+              setState({ status: 'error', message: res && res.error ? res.error : '更新启动失败' })
+            }
+          })
+        } else {
+          check(true)
+        }
+      }
+
+      let cls = 'dsbal-hdr'
+      let inner = null
+      let title = 'DSH 版本（点击检查更新）'
+
+      if (state.status === 'loading') {
+        inner = React.createElement('span', { className: 'dsbal-muted' }, 'DSH版本号：…')
+        title = '正在检查 DSH 版本'
+      } else if (state.status === 'updating') {
+        inner = React.createElement('span', null, '正在更新…')
+        title = '自动更新已启动，完成后请刷新页面'
+      } else if (state.status === 'error') {
+        cls += ' dsbal-err'
+        inner = React.createElement('span', null, '版本检查失败')
+        title = 'DSH 版本检查失败：' + state.message
+      } else if (state.hasUpdate) {
+        cls += ' dsbal-update'
+        inner = React.createElement('span', null, '有新版本')
+        title = '有新版本（' + state.latest + '），点击立即自动更新'
+      } else {
+        inner = React.createElement('span', null, 'DSH版本号：' + state.version)
+        title = 'DSH ' + state.version + '（已是最新，点击立即检查）\n本地提交: ' + state.current
+          + (state.latest ? '\n官方最新: ' + state.latest : '')
+          + (state.checkError ? '\n检查异常: ' + state.checkError : '')
+      }
+
+      return React.createElement('button', {
+        type: 'button',
+        className: cls,
+        title,
+        onClick,
+      }, inner)
+    }
+
+    /** Browser-half entry: register the capsules into the header utilities row. */
     function apply(ctx) {
       const slots = ctx.get('slots')
       if (slots === undefined) return
@@ -112,6 +211,10 @@ window.__ModuleLoader__.load({
       slots.inject('conversation.session.header.utilities', () => slots.register(
         { name: 'conversation.session.header.utilities', id: 'deepseek-balance', order: 100, label: 'DeepSeek 余额' },
         BalanceHeader,
+      ))
+      slots.inject('conversation.session.header.utilities', () => slots.register(
+        { name: 'conversation.session.header.utilities', id: 'deepseek-balance-version', order: 101, label: 'DSH 版本' },
+        VersionHeader,
       ))
     }
 

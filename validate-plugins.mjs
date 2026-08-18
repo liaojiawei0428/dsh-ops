@@ -197,3 +197,7 @@ if (failed > 0) {
   process.exit(1)
 }
 console.log(`validate-plugins: all ${links.length} linked plugin(s) safe to load`)
+// Explicit exit: imported plugin modules may leave active handles (timers,
+// listeners) in the event loop, and waiting for it to drain would hang the
+// gate — and with it every restart script that invokes it.
+process.exit(0)

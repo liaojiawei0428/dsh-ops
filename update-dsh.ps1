@@ -56,6 +56,10 @@ $profPkg = Join-Path $env:USERPROFILE '.dsh\profiles\web\package.json'
 if (Test-Path $profPkg) { Copy-Item $profPkg $backupDir }
 Write-Both "用户配置已备份到 $backupDir"
 
+# 1.7 记录升级前的版本号（用于升级成功后写入本地版本台账）。
+$oldVer = 'unknown'
+try { $oldVer = (Get-Content (Join-Path $repo 'package.json') -Raw | ConvertFrom-Json).version } catch {}
+
 # 2. 代理诊断（本地问题在此明确中止）。
 $proxy = Get-SystemProxy
 if (-not (Set-ProxyEnvironment $proxy)) {
@@ -91,6 +95,9 @@ if ($local -eq $remote) {
 }
 
 if ($CheckOnly) { exit 0 }
+
+# 3.5 记录升级后的提交（用于版本台账; 无更新时与旧提交相同）。
+$newSha = git -C $repo rev-parse HEAD
 
 # 4. 重新安装依赖。
 Push-Location $repo
@@ -149,12 +156,29 @@ Write-Both 'link 插件预检 OK'
 
 # 7. 重启服务让新构建生效。
 Write-Both '重启 DSH 服务...'
+# pid 文件可能缺失或过期（服务器由 restart 脚本/其他方式启动时不会更新它），
+# 按端口 3080 找真实监听进程兜底，保证自动更新真的换上新构建。
 $pidFile = Join-Path $ops 'dsh-web.pid'
+$killed = $false
 if (Test-Path $pidFile) {
   $old = Get-Content $pidFile
-  Stop-Process -Id $old -Force -ErrorAction SilentlyContinue
-  Start-Sleep -Seconds 2
+  $alive = Get-Process -Id $old -ErrorAction SilentlyContinue
+  if ($alive) {
+    Stop-Process -Id $old -Force -ErrorAction SilentlyContinue
+    Write-Both "已停止旧服务 (pid $old)"
+    $killed = $true
+  }
 }
+if (-not $killed) {
+  $listener = Get-NetTCPConnection -State Listen -LocalPort 3080 -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($listener) {
+    Stop-Process -Id $listener.OwningProcess -Force -ErrorAction SilentlyContinue
+    Write-Both "已按端口停止旧服务 (pid $($listener.OwningProcess))"
+  } else {
+    Write-Both '未发现运行中的服务, 直接启动'
+  }
+}
+Start-Sleep -Seconds 2
 pwsh.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ops 'start-dsh-web.ps1')
 if ($LASTEXITCODE -ne 0) {
   Write-Both '服务重启失败, 请手动运行 启动DSH.bat 或查看 dsh-web.err.log'
@@ -176,5 +200,23 @@ if (-not $healthy) {
   exit 1
 }
 Write-Both '健康检查 OK (http://127.0.0.1:3080 已就绪)'
+
+# 8. 写入本地版本台账（每次成功升级追加一行; 台账随 DSH-ops 双机同步）。
+$historyFile = Join-Path $ops 'version-history.md'
+if (-not (Test-Path $historyFile)) {
+  @(
+    '# DSH 本地版本台账',
+    '',
+    '每次成功升级由 update-dsh.ps1 自动追加。版本号来自官方 package.json（稳定），提交为 git commit 前 12 位（精确）。',
+    '',
+    '| 日期 | 升级前 | 升级后 | 提交 | 方式 |',
+    '|---|---|---|---|---|'
+  ) | Out-File -FilePath $historyFile -Encoding utf8
+}
+$method = if ($env:DSH_UPDATE_SOURCE -eq 'auto') { '自动更新' } else { '手动' }
+$row = "| $((Get-Date).ToString('yyyy-MM-dd HH:mm')) | $oldVer | $ver | $($newSha.Substring(0, 12)) | $method |"
+Add-Content -Path $historyFile -Value $row -Encoding utf8
+Write-Both "版本台账已更新: $historyFile"
+
 Write-Both '升级完成! 浏览器将自动打开页面'
 exit 0
