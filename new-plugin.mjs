@@ -9,7 +9,7 @@
  * passes the pre-flight gate by construction.
  *
  * Usage:  node new-plugin.mjs <name>          # name like dsh-tool-foo (no scope)
- *         node new-plugin.mjs <name> --dir D:/GongJu/DSH-ops/plugins
+ *         node new-plugin.mjs <name> --dir <path-to-plugins-dir>
  */
 
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -30,6 +30,11 @@ if (existsSync(dir)) {
   console.error(`refusing to overwrite existing directory: ${dir}`)
   process.exit(1)
 }
+
+/** Derived paths for scaffolded README commands (drive-letter-free layout). */
+const opsDir = dirname(fileURLToPath(import.meta.url))
+const validateScript = join(opsDir, 'validate-plugins.mjs')
+const repoDir = join(dirname(opsDir), 'Deepseek_DSH')
 
 const rowId = argName.replace(/^dsh-/, '')
 
@@ -108,7 +113,7 @@ DSH 系统组件（骨架）。遵循 [PLUGIN-STANDARD.md](../PLUGIN-STANDARD.md
 ## 开发循环
 
 1. 编辑 \`index.js\`；遵守准则 P1–P10
-2. 随时验证：\`node D:/GongJu/DSH-ops/validate-plugins.mjs\` —— 必须全绿才能进入安装
+2. 随时验证：\`node ${validateScript}\` —— 必须全绿才能进入安装
 3. 浏览器半端（可选）：\`package.json\` 加 \`dsh.client\` 声明并新建 \`client.js\`（闸门会做语法检查）
 
 ## 安装（三步）
@@ -120,7 +125,7 @@ DSH 系统组件（骨架）。遵循 [PLUGIN-STANDARD.md](../PLUGIN-STANDARD.md
 
 ## 验证
 
-- \`node D:/GongJu/Deepseek_DSH/apps/cli/lib/bin.js --profile web --dump-config\` 出现 \`id: ${rowId}\` 行
+- \`node ${repoDir}/apps/cli/lib/bin.js --profile web --dump-config\` 出现 \`id: ${rowId}\` 行
 - 新会话确认行为
 
 ## 已知边界
@@ -134,4 +139,4 @@ for (const [name, content] of Object.entries(files)) {
   await writeFile(join(dir, name), content, 'utf8')
 }
 console.log(`created ${dir}`)
-console.log(`next: node D:/GongJu/DSH-ops/validate-plugins.mjs   # must PASS before install`)
+console.log(`next: node ${validateScript}   # must PASS before install`)
