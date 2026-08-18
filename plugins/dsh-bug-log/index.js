@@ -30,11 +30,16 @@
 
 import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 
-/** Default shared buglog directory (the DSH-ops repo, git-synced across machines). */
-const DEFAULT_BUGLOG_DIR = 'D:/GongJu/DSH-ops/buglog'
+/**
+ * Default shared buglog directory: the DSH-ops repo's buglog/, derived from
+ * this module's own location (plugins/dsh-bug-log → two levels up: DSH-ops),
+ * so any drive letter works as long as the sibling layout holds.
+ */
+const DEFAULT_BUGLOG_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'buglog')
 
 /** INDEX file name, excluded from record enumeration. */
 const INDEX_FILE = 'INDEX.md'

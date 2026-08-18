@@ -8,18 +8,28 @@
 
 ---
 
-## ⚠️ 最重要的前提：固定路径约定
+## ⚠️ 最重要的前提：相对路径约定（盘符自由）
 
-**所有运维脚本、插件、更新链路都硬编码 `D:\GongJu\` 路径**——这是设计决策，不是缺陷：
-两台电脑统一用同一路径，脚本即可零修改工作。**部署时必须严格使用以下路径，不能换盘符或改名**：
+**所有运维脚本、插件、更新链路都按"同级目录结构"自动推导路径**——不依赖固定盘符。
+部署时只需保证两个仓库**在同一父目录下**（任意盘符均可）：
 
 | 路径 | 内容 |
 |---|---|
-| `D:\GongJu\Deepseek_DSH` | 官方 DSH 源码仓库 |
-| `D:\GongJu\DSH-ops` | 本仓库（插件/脚本/标准/知识库） |
+| `<盘符>:\DSH\Deepseek_DSH` | 官方 DSH 源码仓库 |
+| `<盘符>:\DSH\DSH-ops` | 本仓库（插件/脚本/标准/知识库） |
 | `%USERPROFILE%\.dsh` | DSH 用户数据（DSH_HOME，每机独立） |
 
-违反路径约定 = 脚本全部失效（启动/更新/闸门/版本检查都会找不到路径）。
+**规则：两仓库必须同父目录、同名**（`Deepseek_DSH` 与 `DSH-ops` 并列）。例如：
+
+- 开发机：`D:\DSH\Deepseek_DSH` + `D:\DSH\DSH-ops`
+- 另一台电脑：`E:\DSH\Deepseek_DSH` + `E:\DSH\DSH-ops`（盘符随意，父目录名也可随意）
+
+脚本从自身位置推导仓库路径（`$PSScriptRoot`/`%~dp0`/`import.meta.url`），
+**只要结构成立，任何盘符都能零修改工作**。
+
+唯一需要写入具体路径的地方：profile 的 `link:` 依赖与 `pythonPath`（见第 3 步）。
+`restart-dsh-web.ps1` 在 `~/.dsh` 下（不在 DSH-ops 里），通过 `DSH_OPS_DIR`
+环境变量定位（默认 `D:\GongJu\DSH-ops`，非默认布局时设置即可）。
 
 ---
 
@@ -38,18 +48,21 @@
 
 ## 第 1 步：拉取两个仓库
 
+> 选一个父目录（本文以 `<盘符>:\DSH` 为例，实际任意盘符/目录名均可），
+> 两个仓库必须并列放在该目录下：
+
 ```powershell
 # 官方仓库（私有，需 GitHub 凭据；VPN 需先开）
-git clone https://github.com/deepseek-ai/deepseek-harness.git D:\GongJu\Deepseek_DSH
+git clone https://github.com/deepseek-ai/deepseek-harness.git <盘符>:\DSH\Deepseek_DSH
 
 # DSH-ops 仓库
-git clone https://github.com/liaojiawei0428/dsh-ops.git D:\GongJu\DSH-ops
+git clone https://github.com/liaojiawei0428/dsh-ops.git <盘符>:\DSH\DSH-ops
 ```
 
 clone 官方仓库后**必须 checkout 到开发机当前版本**（以 [version-history.md](version-history.md) 台账最新行为准）：
 
 ```powershell
-git -C D:\GongJu\Deepseek_DSH checkout 99f6f02fecdb7dff40c3fbc9470f5907c29f74ca
+git -C <盘符>:\DSH\Deepseek_DSH checkout 99f6f02fecdb7dff40c3fbc9470f5907c29f74ca
 ```
 
 > 以后升级一律用 `更新DSH.bat`（自动拉取官方最新并 checkout），勿手工切换版本。
@@ -59,7 +72,7 @@ git -C D:\GongJu\Deepseek_DSH checkout 99f6f02fecdb7dff40c3fbc9470f5907c29f74ca
 ## 第 2 步：构建 DSH 主程序
 
 ```powershell
-cd D:\GongJu\Deepseek_DSH
+cd <盘符>:\DSH\Deepseek_DSH
 pnpm install --frozen-lockfile
 pnpm run build
 node apps\cli\lib\bin.js --version   # 应输出 0.1.0-rc.7
@@ -71,17 +84,17 @@ node apps\cli\lib\bin.js --version   # 应输出 0.1.0-rc.7
 
 创建目录 `%USERPROFILE%\.dsh\profiles\web\`，写入两个文件。
 
-**`package.json`**：
+**`package.json`**（`<盘符>` 换成你实际选择的盘符）：
 
 ```json
 {
   "name": "dsh-profile-web",
   "private": true,
   "dependencies": {
-    "dsh-deepseek-balance": "link:D:/GongJu/DSH-ops/plugins/dsh-deepseek-balance",
-    "dsh-locale-language": "link:D:/GongJu/DSH-ops/plugins/dsh-locale-language",
-    "dsh-tool-python": "link:D:/GongJu/DSH-ops/plugins/dsh-tool-python",
-    "dsh-bug-log": "link:D:/GongJu/DSH-ops/plugins/dsh-bug-log"
+    "dsh-deepseek-balance": "link:<盘符>:/DSH/DSH-ops/plugins/dsh-deepseek-balance",
+    "dsh-locale-language": "link:<盘符>:/DSH/DSH-ops/plugins/dsh-locale-language",
+    "dsh-tool-python": "link:<盘符>:/DSH/DSH-ops/plugins/dsh-tool-python",
+    "dsh-bug-log": "link:<盘符>:/DSH/DSH-ops/plugins/dsh-bug-log"
   },
   "dsh": {
     "profile": {
@@ -114,14 +127,10 @@ node apps\cli\lib\bin.js --version   # 应输出 0.1.0-rc.7
   config:
     pythonPath: 'C:\Users\<用户名>\AppData\Local\Programs\Python\Python312\python.exe'
 
-# deepseek-balance: repo-status/update-now target the fixed path convention.
-# (Defaults are D:/GongJu/Deepseek_DSH and D:/GongJu/DSH-ops; only override if
-# the machine deviates from the convention.)
+# deepseek-balance: repoDir/opsDir 默认按同级结构自动推导，一般无需配置；
+# 仅当布局偏离约定时在此覆盖。
 - id: deepseek-balance
   name: dsh-deepseek-balance
-  config:
-    repoDir: 'D:/GongJu/Deepseek_DSH'
-    opsDir: 'D:/GongJu/DSH-ops'
 ```
 
 然后在 profile 目录安装链接：
@@ -139,7 +148,7 @@ pnpm install
 
 ```powershell
 # 首次执行会创建 %USERPROFILE%\.dsh\
-Copy-Item D:\GongJu\DSH-ops\config\settings.yaml %USERPROFILE%\.dsh\settings.yaml
+Copy-Item <盘符>:\DSH\DSH-ops\config\settings.yaml %USERPROFILE%\.dsh\settings.yaml
 ```
 
 **API 密钥**（含密钥，永不入 git，每机独立）：
@@ -159,15 +168,15 @@ ZAI_API_KEY: 你的智谱密钥
 
 ```powershell
 # 1. 插件闸门（重启前必跑）
-node D:\GongJu\DSH-ops\validate-plugins.mjs
+node <盘符>:\DSH\DSH-ops\validate-plugins.mjs
 # 期望: 4 个插件全部 PASS
 
 # 2. 组合树
-node D:\GongJu\Deepseek_DSH\apps\cli\lib\bin.js --profile web --dump-config
+node <盘符>:\DSH\Deepseek_DSH\apps\cli\lib\bin.js --profile web --dump-config
 # 期望: 出现 pwsh-sandbox / locale-language / deepseek-balance / tool-python / bug-log 行
 
 # 3. 启动
-D:\GongJu\DSH-ops\启动DSH.bat
+<盘符>:\DSH\DSH-ops\启动DSH.bat
 # 期望: 提示"已是最新版本" + 浏览器打开 http://127.0.0.1:3080
 ```
 
@@ -187,7 +196,7 @@ D:\GongJu\DSH-ops\启动DSH.bat
 | 检查官方仓库更新 | 启动时自动（check-update.ps1）或 `更新DSH.bat` |
 | 升级 DSH | `更新DSH.bat`（全套守卫 + 版本台账自动记录） |
 | 自动更新 | 点击版本胶囊「有新版本」即触发 |
-| 同步插件/知识库 | `git -C D:\GongJu\DSH-ops pull`（buglog、台账、标准随之更新） |
+| 同步插件/知识库 | `git -C <盘符>:\DSH\DSH-ops pull`（buglog、台账、标准随之更新） |
 
 ---
 

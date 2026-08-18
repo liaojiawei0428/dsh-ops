@@ -2,8 +2,10 @@
   [switch]$CheckOnly
 )
 $ErrorActionPreference = 'Stop'
-$repo = 'D:\GongJu\Deepseek_DSH'
-$ops = 'D:\GongJu\DSH-ops'
+# 路径约定：本脚本位于 <root>\DSH-ops，官方仓库为同级 <root>\Deepseek_DSH，
+# 盘符任意，仅要求两仓库同父目录。
+$ops = $PSScriptRoot
+$repo = Join-Path (Split-Path $ops -Parent) 'Deepseek_DSH'
 $log = Join-Path $ops 'dsh-update.log'
 . (Join-Path $ops 'lib-proxy.ps1')
 

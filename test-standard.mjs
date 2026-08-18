@@ -18,9 +18,10 @@
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const OPS = resolve('D:/GongJu/DSH-ops')
+const OPS = dirname(fileURLToPath(import.meta.url))
 const NODE = process.execPath
 
 /** Run one helper script and capture { status, stdout, stderr }. */

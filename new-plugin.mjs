@@ -14,7 +14,8 @@
 
 import { mkdir, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const argName = process.argv[2]
 if (argName === undefined || !/^dsh-[a-z0-9-]+$/.test(argName)) {
@@ -22,7 +23,8 @@ if (argName === undefined || !/^dsh-[a-z0-9-]+$/.test(argName)) {
   process.exit(1)
 }
 const dirIdx = process.argv.indexOf('--dir')
-const baseDir = dirIdx !== -1 ? resolve(process.argv[dirIdx + 1]) : resolve('D:/GongJu/DSH-ops/plugins')
+const pluginsDir = join(dirname(fileURLToPath(import.meta.url)), 'plugins')
+const baseDir = dirIdx !== -1 ? resolve(process.argv[dirIdx + 1]) : pluginsDir
 const dir = join(baseDir, argName)
 if (existsSync(dir)) {
   console.error(`refusing to overwrite existing directory: ${dir}`)

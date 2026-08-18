@@ -26,9 +26,11 @@ DSH 系统组件：在会话头部工具条（Session log 导出按钮旁）显�
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
-| `repoDir` | `D:/GongJu/Deepseek_DSH` | DSH 主仓库路径（版本检查目标） |
-| `opsDir` | `D:/GongJu/DSH-ops` | 运维脚本目录（`update-dsh.ps1` 所在） |
+| `repoDir` | 自动推导（DSH-ops 同级 `Deepseek_DSH`） | DSH 主仓库路径（版本检查目标） |
+| `opsDir` | 自动推导（本插件所在 DSH-ops） | 运维脚本目录（`update-dsh.ps1` 所在） |
 | `checkIntervalMs` | `3600000` | 官方仓库检查间隔（1 小时） |
+
+默认值按"两仓库同父目录"结构从插件自身位置推导（盘符任意）；仅当布局偏离约定时在 profile `cordis.patch.yml` 覆盖。
 
 ## 在新电脑上部署（同步 DSH 插件）
 

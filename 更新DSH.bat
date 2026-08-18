@@ -4,10 +4,10 @@ echo ============================================
 echo    DeepSeek Harness (DSH) Updater
 echo ============================================
 echo.
-pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "D:\GongJu\DSH-ops\update-dsh.ps1"
+pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0update-dsh.ps1"
 if errorlevel 1 (
     echo.
-    echo [ERROR] Update failed. Check log: D:\GongJu\DSH-ops\dsh-update.log
+    echo [ERROR] Update failed. Check log: %~dp0dsh-update.log
     echo.
     pause
     exit /b 1

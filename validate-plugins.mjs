@@ -28,11 +28,17 @@ import { access } from 'node:fs/promises'
 import { readFile } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { homedir } from 'node:os'
-import { pathToFileURL } from 'node:url'
-import { join, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { dirname, join, resolve } from 'node:path'
 
-/** Where the built core validator lives; parameterize for portability. */
-const TOOLS_LIB = process.env.DSH_TOOLS_LIB ?? 'D:/GongJu/Deepseek_DSH/packages/core/tools/lib/index.js'
+/**
+ * Where the built core validator lives: derived from this script's own
+ * location (DSH-ops) — the official repo is the sibling <root>/Deepseek_DSH,
+ * so any drive letter works. Override via DSH_TOOLS_LIB when needed.
+ */
+const OPS_DIR = dirname(fileURLToPath(import.meta.url))
+const TOOLS_LIB = process.env.DSH_TOOLS_LIB
+  ?? join(dirname(OPS_DIR), 'Deepseek_DSH/packages/core/tools/lib/index.js').replaceAll('\\', '/')
 /** Profile directory whose linked plugins to validate; resolved per machine. */
 const PROFILE_DIR = process.argv[2]
   ?? (process.env.DSH_HOME !== undefined ? resolve(process.env.DSH_HOME, 'profiles/web') : resolve(homedir(), '.dsh/profiles/web'))
@@ -121,7 +127,15 @@ function checkClientSyntax(file) {
 
 // ---- Main ------------------------------------------------------------------
 
-const { assertSupportedJsonSchema } = await import(pathToFileURL(TOOLS_LIB).href)
+let assertSupportedJsonSchema
+try {
+  ;({ assertSupportedJsonSchema } = await import(pathToFileURL(TOOLS_LIB).href))
+} catch (error) {
+  console.error(`validate-plugins: cannot load core validator from ${TOOLS_LIB}`)
+  console.error(`  (run "pnpm run build" in the DSH repo first, or set DSH_TOOLS_LIB)`)
+  console.error(`  ${error.code ?? error.message}`)
+  process.exit(1)
+}
 const profilePath = resolve(PROFILE_DIR)
 const manifestPath = join(profilePath, 'package.json')
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))

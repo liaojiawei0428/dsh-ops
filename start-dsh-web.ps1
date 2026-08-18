@@ -1,5 +1,7 @@
 ﻿$ErrorActionPreference = 'Continue'
-$ops = 'D:\GongJu\DSH-ops'
+# 路径约定：本脚本位于 <root>\DSH-ops，官方仓库为同级 <root>\Deepseek_DSH。
+$ops = $PSScriptRoot
+$repo = Join-Path (Split-Path $ops -Parent) 'Deepseek_DSH'
 New-Item -ItemType Directory -Path $ops -Force | Out-Null
 $log = Join-Path $ops 'dsh-switch.log'
 $me = $PID
@@ -46,7 +48,7 @@ Write-Both '正在启动 DSH 服务，请稍候...'
 for ($attempt = 1; $attempt -le 3; $attempt++) {
   $p = Start-Process -FilePath 'C:\Program Files\nodejs\node.exe' `
     -ArgumentList 'apps/cli/lib/bin.js', 'web' `
-    -WorkingDirectory 'D:\GongJu\Deepseek_DSH' `
+    -WorkingDirectory $repo `
     -WindowStyle Hidden `
     -RedirectStandardOutput (Join-Path $ops 'dsh-web.log') `
     -RedirectStandardError (Join-Path $ops 'dsh-web.err.log') `

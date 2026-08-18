@@ -16,10 +16,26 @@
 
 import { execFile, spawn } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
+
+/**
+ * Deployment-layout defaults derived from this file's own location, so any
+ * drive letter works as long as the sibling layout holds:
+ *   <root>/Deepseek_DSH   (official repo)
+ *   <root>/DSH-ops        (this repo; this plugin lives at DSH-ops/plugins/…)
+ */
+const OPS_DIR = resolveOpsDir()
+const REPO_DIR = join(dirname(OPS_DIR), 'Deepseek_DSH')
+
+/** Resolve the DSH-ops directory from this module's path (two levels up: plugins/<name>/index.js → DSH-ops). */
+function resolveOpsDir() {
+  const here = dirname(fileURLToPath(import.meta.url))
+  return join(here, '..', '..')
+}
 
 /** Balance cache TTL — repeated mounts within this window reuse the last fetch. */
 const TTL_MS = 60000
@@ -200,10 +216,10 @@ export const inject = ['webServer']
 export function apply(ctx, config = {}) {
   const repoDir = typeof config.repoDir === 'string' && config.repoDir.length > 0
     ? config.repoDir
-    : 'D:/GongJu/Deepseek_DSH'
+    : REPO_DIR
   const opsDir = typeof config.opsDir === 'string' && config.opsDir.length > 0
     ? config.opsDir
-    : 'D:/GongJu/DSH-ops'
+    : OPS_DIR
   const checkIntervalMs = typeof config.checkIntervalMs === 'number' && Number.isFinite(config.checkIntervalMs) && config.checkIntervalMs > 0
     ? config.checkIntervalMs
     : 60 * 60 * 1000

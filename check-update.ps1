@@ -1,7 +1,9 @@
 ﻿# 启动时快速检查 DSH 是否有新版本。
 # 动态读取系统代理；任何失败都会明确提示原因，但绝不阻塞启动流程。
-$repo = 'D:\GongJu\Deepseek_DSH'
-$ops = 'D:\GongJu\DSH-ops'
+# 路径约定：本脚本位于 <root>\DSH-ops，官方仓库为同级 <root>\Deepseek_DSH，
+# 盘符任意，仅要求两仓库同父目录。
+$ops = $PSScriptRoot
+$repo = Join-Path (Split-Path $ops -Parent) 'Deepseek_DSH'
 . (Join-Path $ops 'lib-proxy.ps1')
 
 # 1. 代理诊断（本地问题在这里被明确拦截并提示）。
