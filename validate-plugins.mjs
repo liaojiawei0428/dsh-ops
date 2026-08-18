@@ -27,13 +27,15 @@
 import { access } from 'node:fs/promises'
 import { readFile } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
+import { homedir } from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { join, resolve } from 'node:path'
 
 /** Where the built core validator lives; parameterize for portability. */
 const TOOLS_LIB = process.env.DSH_TOOLS_LIB ?? 'D:/GongJu/Deepseek_DSH/packages/core/tools/lib/index.js'
-/** Profile directory whose linked plugins to validate. */
-const PROFILE_DIR = process.argv[2] ?? 'C:/Users/37868/.dsh/profiles/web'
+/** Profile directory whose linked plugins to validate; resolved per machine. */
+const PROFILE_DIR = process.argv[2]
+  ?? (process.env.DSH_HOME !== undefined ? resolve(process.env.DSH_HOME, 'profiles/web') : resolve(homedir(), '.dsh/profiles/web'))
 
 /** Resolve the `exports` file list of a package.json manifest.
  * @param manifest - parsed package.json.

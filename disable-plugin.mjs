@@ -14,6 +14,7 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 
 const argName = process.argv[2]
@@ -22,7 +23,9 @@ if (argName === undefined) {
   process.exit(1)
 }
 const profIdx = process.argv.indexOf('--profile')
-const profileDir = profIdx !== -1 ? resolve(process.argv[profIdx + 1]) : resolve('C:/Users/37868/.dsh/profiles/web')
+const profileDir = profIdx !== -1
+  ? resolve(process.argv[profIdx + 1])
+  : resolve(process.env.DSH_HOME ?? resolve(homedir(), '.dsh'), 'profiles/web')
 const manifestPath = resolve(profileDir, 'package.json')
 
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
