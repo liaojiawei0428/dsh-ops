@@ -1,0 +1,19 @@
+{
+  "name": "dsh-tool-python",
+  "version": "0.1.0",
+  "description": "DSH system component: model-facing Python 3 execution tool over the shell seam",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

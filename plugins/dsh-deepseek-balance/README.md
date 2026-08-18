@@ -1,13 +1,15 @@
 # dsh-deepseek-balance
 
 DSH 系统组件：在会话头部工具条（Session log 导出按钮旁）常驻显示 DeepSeek
-账户余额胶囊，点击刷新，余额 ≤ ¥10 橙色警示，悬停显示明细。
+账户余额胶囊，点击立即刷新，**每 5 分钟自动静默刷新**（不闪加载态），
+余额 ≤ ¥10 橙色警示，悬停显示明细。
 
 - **Host 半端**（`index.js`）：注册 `/api/dsh/deepseek-balance` 路由，
   用 `credentials` 服务解析 `DEEPSEEK_API_KEY`，原生 `fetch` 调用官方
   `https://api.deepseek.com/user/balance`，60 秒缓存。
 - **浏览器半端**（`client.js`）：手写 client bundle，注册
-  `conversation.session.header.utilities` 胶囊，`fetch` 本地路由取数。
+  `conversation.session.header.utilities` 胶囊，`fetch` 本地路由取数；
+  自动刷新间隔 `REFRESH_INTERVAL_MS = 5 * 60 * 1000`（5 分钟）。
 
 ## 在新电脑上部署（同步 DSH 插件）
 

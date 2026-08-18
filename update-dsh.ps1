@@ -26,6 +26,36 @@ if ($dirty) {
 }
 Write-Both '本地工作区干净 OK'
 
+# 1.5 用户配置完整性校验（在动任何东西之前）。
+# 背景: .credentials.yaml 一旦损坏, 凭据插件按设计 fail-loud, 进程在监听端口前
+# 就退出, 启动器重试全部失败。该文件设计上是扁平的 KEY: value 结构,
+# 值里不允许出现冒号 —— 行内出现第二个 ": " 即为损坏特征。
+$credPath = Join-Path $env:USERPROFILE '.dsh\.credentials.yaml'
+if (Test-Path $credPath) {
+  $lineNo = 0
+  foreach ($line in (Get-Content $credPath)) {
+    $lineNo++
+    if ($line -match '^\s*(#.*)?$') { continue }
+    if ($line -notmatch '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^:]+?)\s*$') {
+      Write-Both "错误: $credPath 第 $lineNo 行不是合法的 KEY: value 条目 (值中不允许冒号)"
+      Write-Both "恢复: 从 $env:USERPROFILE\.dsh\backups\<时间戳>\ 复制最近的备份"
+      exit 1
+    }
+  }
+  Write-Both '凭据文件结构 OK'
+}
+
+# 1.6 备份用户配置（升级出错时可立即恢复; 含密钥, 必须留在本机, 不可提交仓库）。
+$backupDir = Join-Path $env:USERPROFILE ("\.dsh\backups\" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+foreach ($f in @('.credentials.yaml', 'settings.yaml')) {
+  $p = Join-Path $env:USERPROFILE ".dsh\$f"
+  if (Test-Path $p) { Copy-Item $p $backupDir }
+}
+$profPkg = Join-Path $env:USERPROFILE '.dsh\profiles\web\package.json'
+if (Test-Path $profPkg) { Copy-Item $profPkg $backupDir }
+Write-Both "用户配置已备份到 $backupDir"
+
 # 2. 代理诊断（本地问题在此明确中止）。
 $proxy = Get-SystemProxy
 if (-not (Set-ProxyEnvironment $proxy)) {
@@ -65,8 +95,8 @@ if ($CheckOnly) { exit 0 }
 # 4. 重新安装依赖。
 Push-Location $repo
 try {
-  Write-Both '安装依赖 (pnpm install)...'
-  pnpm install
+  Write-Both '安装依赖 (pnpm install --frozen-lockfile)...'
+  pnpm install --frozen-lockfile
   if ($LASTEXITCODE -ne 0) { throw 'pnpm install 失败' }
   Write-Both '依赖安装完成 OK'
 
@@ -78,6 +108,7 @@ try {
 } catch {
   Write-Both "构建阶段失败: $($_.Exception.Message)"
   Write-Both '旧服务仍在运行, 不受影响 (可继续使用旧版本)'
+  Write-Both "回滚到升级前版本: git -C $repo checkout $($local.Substring(0, 12)) 后重跑本脚本"
   Pop-Location
   exit 1
 }
@@ -87,6 +118,35 @@ Pop-Location
 $ver = node (Join-Path $repo 'apps\cli\lib\bin.js') --version
 Write-Both "新版本: $ver"
 
+# 6.5 profile 组合预检: profile 声明的每个 bundle 都必须能解析进组合树。
+# 背景: 曾发生过 npm 上同名旧版插件被误装, 位置形态全错。这一步在重启前
+# 就能发现 bundle 解析失败; 已链接插件指向的路径丢失也会在此暴露。
+$dump = node (Join-Path $repo 'apps\cli\lib\bin.js') --profile web --dump-config 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0) {
+  Write-Both "错误: dump-config 失败, 中止 (旧服务不受影响): $dump"
+  exit 1
+}
+$bundles = (Get-Content $profPkg -Raw | ConvertFrom-Json).dsh.profile.bundles
+foreach ($b in @($bundles)) {
+  if ($dump -notmatch [regex]::Escape($b)) {
+    Write-Both "错误: profile 声明的 bundle '$b' 未出现在组合树中 (依赖丢失或未安装)"
+    Write-Both "中止重启, 旧服务不受影响; 修复: 检查 $profPkg 与 node_modules 链接"
+    exit 1
+  }
+}
+Write-Both "profile 组合校验 OK ($(@($bundles).Count) 个 bundle 全部解析)"
+
+# 6.7 link 插件预检闸门: 用真实核心校验器执行每个 link 插件的注册路径。
+# 背景: 13:05 事故——插件注册期抛错 (schema 方言违规) 使进程在监听端口前
+# 崩溃, 启动器 3 次重试全部死于同一错误。此闸门在动旧服务之前拦截该类故障。
+& 'C:\Program Files\nodejs\node.exe' (Join-Path $ops 'validate-plugins.mjs') 2>&1 | ForEach-Object { Write-Both "plugins: $_" }
+if ($LASTEXITCODE -ne 0) {
+  Write-Both '错误: link 插件未通过预检, 中止重启 (旧服务不受影响)'
+  Write-Both '修复对应插件后重跑本脚本; 也可临时从 profile bundles 移除该插件'
+  exit 1
+}
+Write-Both 'link 插件预检 OK'
+
 # 7. 重启服务让新构建生效。
 Write-Both '重启 DSH 服务...'
 $pidFile = Join-Path $ops 'dsh-web.pid'
@@ -95,10 +155,26 @@ if (Test-Path $pidFile) {
   Stop-Process -Id $old -Force -ErrorAction SilentlyContinue
   Start-Sleep -Seconds 2
 }
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ops 'start-dsh-web.ps1')
+pwsh.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ops 'start-dsh-web.ps1')
 if ($LASTEXITCODE -ne 0) {
   Write-Both '服务重启失败, 请手动运行 启动DSH.bat 或查看 dsh-web.err.log'
   exit 1
 }
+
+# 7.5 HTTP 健康检查: 启动器退出码为 0 不等于服务已就绪。
+$healthy = $false
+$deadline = (Get-Date).AddSeconds(120)
+while ((Get-Date) -lt $deadline) {
+  try {
+    $resp = Invoke-WebRequest -Uri 'http://127.0.0.1:3080' -UseBasicParsing -TimeoutSec 5
+    if ($resp.StatusCode -lt 500) { $healthy = $true; break }
+  } catch { Start-Sleep -Seconds 3 }
+}
+if (-not $healthy) {
+  Write-Both '错误: 服务 120 秒内未就绪, 排障: dsh-web.err.log / dsh-update.log'
+  Write-Both "回滚: git -C $repo checkout $($local.Substring(0, 12)) && 重跑本脚本"
+  exit 1
+}
+Write-Both '健康检查 OK (http://127.0.0.1:3080 已就绪)'
 Write-Both '升级完成! 浏览器将自动打开页面'
 exit 0

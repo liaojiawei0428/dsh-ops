@@ -4,7 +4,7 @@ echo ============================================
 echo    DeepSeek Harness (DSH) Updater
 echo ============================================
 echo.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\GongJu\DSH-ops\update-dsh.ps1"
+pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "D:\GongJu\DSH-ops\update-dsh.ps1"
 if errorlevel 1 (
     echo.
     echo [ERROR] Update failed. Check log: D:\GongJu\DSH-ops\dsh-update.log

@@ -1,0 +1,9 @@
+# dsh-tool-python bundle patch — inserts one host-plane row: the model-facing
+# python tool. The row consumes host services only (tools, shell, systemPrompt,
+# shellEnv) and publishes none, so it sits loose with no realm.
+# `pythonPath` defaults to `python` (resolved through the shell's PATH);
+# a deployment pins an absolute interpreter path through its profile's
+# cordis.patch.yml id-targeted config override instead of editing this row.
+- insert:
+    - id: tool-python
+      name: dsh-tool-python

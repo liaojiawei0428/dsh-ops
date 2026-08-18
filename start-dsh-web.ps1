@@ -10,9 +10,9 @@ function Write-Both([string]$msg) {
   "[$([DateTime]::Now)] $msg" | Out-File $log -Append
 }
 
-# 单实例保护：只匹配真正的 `powershell -File start-dsh-web.ps1` 调用
+# 单实例保护：只匹配真正的 `pwsh/powershell -File start-dsh-web.ps1` 调用
 # （不带 -Command），避免命令行里恰好提到脚本名的诊断进程被误判。
-$others = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
+$others = Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" |
   Where-Object {
     $_.ProcessId -ne $me -and
     $_.CommandLine -match 'start-dsh-web\.ps1' -and
@@ -32,6 +32,14 @@ if ($existing) {
   Start-Process 'http://127.0.0.1:3080'
   Start-Sleep -Seconds 2
   exit 0
+}
+
+# link 插件预检闸门：注册期抛错的插件会让每次启动尝试在监听端口前崩溃
+# （13:05 事故：3 次重试死于同一错误）。先验证，把无意义重试变成一次明确报错。
+& 'C:\Program Files\nodejs\node.exe' (Join-Path $ops 'validate-plugins.mjs') 2>&1 | ForEach-Object { Write-Both "plugins: $_" }
+if ($LASTEXITCODE -ne 0) {
+  Write-Both '启动中止: link 插件未通过预检 (见上方 plugins: 行); 修复插件后重试'
+  exit 1
 }
 
 Write-Both '正在启动 DSH 服务，请稍候...'

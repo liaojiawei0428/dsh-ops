@@ -42,6 +42,9 @@ window.__ModuleLoader__.load({
         .catch((err) => ({ ok: false, error: String(err && err.message ? err.message : err) }))
     }
 
+    /** Auto-refresh cadence: 5 minutes, silent (no loading flicker). */
+    const REFRESH_INTERVAL_MS = 5 * 60 * 1000
+
     /** The header utilities capsule next to the Session log export button. */
     function BalanceHeader() {
       const [state, setState] = React.useState({ status: 'loading' })
@@ -57,7 +60,11 @@ window.__ModuleLoader__.load({
         })
       }
 
-      React.useEffect(() => { load(false) }, [])
+      React.useEffect(() => {
+        load(false)
+        const timer = setInterval(() => { load(true) }, REFRESH_INTERVAL_MS)
+        return () => clearInterval(timer)
+      }, [])
 
       let cls = 'dsbal-hdr'
       let inner = null

@@ -1,0 +1,19 @@
+{
+  "name": "dsh-bug-log",
+  "version": "0.1.0",
+  "description": "DSH system component: persistent bug knowledge base (bug_report/bug_search/bug_stats tools + recall prompt + missed-record heuristic)",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
