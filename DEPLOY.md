@@ -40,7 +40,7 @@
 | Git | 任意较新版本 | `git --version` |
 | Node.js | ^22.19 或 >=24（仓库 engines 要求） | `node --version` |
 | pnpm | 任意（corepack 或 `npm i -g pnpm`） | `pnpm --version` |
-| PowerShell 7 | >= 7（**5.1 不可用**，见 BOM/GBK 事故） | `pwsh --version` |
+| PowerShell 7 | >= 7（**5.1 不可用**，见 BOM/GBK 事故）。标准位置安装（msi/winget）或 PATH 可用即零配置；便携/自定义安装位置见文末"已知差异" | `pwsh --version` |
 | Python 3 | >= 3.10（dsh-tool-python 需要） | `python --version` |
 | 系统代理 | 能访问 GitHub 的代理/VPN | 控制面板 → Internet 选项 → 代理 |
 
@@ -121,11 +121,13 @@ node apps\cli\lib\bin.js --version   # 应输出 0.1.0-rc.7
   config:
     pwshPath: 'C:\Program Files\PowerShell\7\pwsh.exe'
 
-# tool-python: pin the interpreter absolutely.
+# tool-python: interpreter AUTO-DISCOVERY — pythonPath is optional.
+# Discovery order: DSH_PYTHON_PATH env → `py -3` launcher → PATH `python`
+# (probe-verified; the WindowsApps Store stub is rejected) → Python3* under
+# the standard install roots. Pin pythonPath only to force one of several
+# installed versions.
 - id: tool-python
   name: dsh-tool-python
-  config:
-    pythonPath: 'C:\Users\<用户名>\AppData\Local\Programs\Python\Python312\python.exe'
 
 # deepseek-balance: repoDir/opsDir 默认按同级结构自动推导，一般无需配置；
 # 仅当布局偏离约定时在此覆盖。
@@ -196,6 +198,7 @@ node <盘符>:\DSH\Deepseek_DSH\apps\cli\lib\bin.js --profile web --dump-config
 | 检查官方仓库更新 | 启动时自动（check-update.ps1）或 `更新DSH.bat` |
 | 升级 DSH | `更新DSH.bat`（全套守卫 + 版本台账自动记录） |
 | 自动更新 | 点击版本胶囊「有新版本」即触发 |
+| 彻底重启 DSH | `启动DSH.bat`（**点击一次即彻底重启**：先强制停止当前服务并等端口释放，再走插件闸门+完整启动；无运行服务时直接启动） |
 | 同步插件/知识库 | `git -C <盘符>:\DSH\DSH-ops pull`（buglog、台账、标准随之更新） |
 
 ---
@@ -207,6 +210,8 @@ node <盘符>:\DSH\Deepseek_DSH\apps\cli\lib\bin.js --profile web --dump-config
 | 密钥/模型设置 | 每台机器独立，见第 4 步 |
 | 系统代理 | 每台机器独立（GitHub 访问必需） |
 | DSH 官方仓库版本 | 各机器可能停在各自升级时的版本；以版本台账为准，用 `更新DSH.bat` 对齐 |
+| pwsh 7 非标准位置 | pwsh 定位链（版本胶囊自动更新 + update-dsh.ps1 重启）：`DSH_PWSH_PATH` 环境变量 → PATH 各目录 → `C:\Program Files\PowerShell\7`。标准安装零配置；便携/自定义路径时**必须**（其一）：① 把 pwsh 目录加入系统 PATH（推荐）；② 设系统环境变量 `DSH_PWSH_PATH` 指向 pwsh.exe 完整路径。另需把 profile `cordis.patch.yml` 的 `pwshPath` 改为实际路径，否则 pwsh 沙箱工具会静默降级 5.1（中文乱码，见 buglog）。找不到 pwsh 7 时胶囊会明确报"更新启动失败"，不会静默假更新 |
+| pwsh 不可用时执行任务 | **不需要** pwsh 可用才能跑任务：DSH 会话内 `python` 工具（dsh-tool-python）与 `pwsh` 工具走同一 shell 执行器，但解释器解析完全独立——pythonPath 缺省时自动发现（DSH_PYTHON_PATH → py -3 → PATH python 探测验证 → 标准安装位），且强制 UTF-8 输出，**即使 pwsh 7 缺失也能用 Python 执行计算/数据处理任务**。唯一硬依赖：机器上至少有一个可用的 Python 3（python.org 标准安装即满足）。更新/启动链路仍要求 pwsh 7（BOM/GBK 事故禁用 5.1），见上一行 |
 
 ---
 

@@ -15,7 +15,7 @@
  */
 
 import { execFile, spawn } from 'node:child_process'
-import { readFile } from 'node:fs/promises'
+import { access, constants, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
@@ -133,24 +133,111 @@ async function checkRepoUpdate(repoDir) {
 }
 
 /**
- * Launch the detached updater script; the process outlives the server (which
- * the updater itself will restart), so it must detach from the host's job tree.
+ * Resolve the pwsh 7 executable without hard-coding one machine's install
+ * path (E:\GongJu\7\pwsh.exe here; the default C:\Program Files\PowerShell\7
+ * does not exist on this deployment). Order: DSH_PWSH_PATH override → every
+ * PATH entry → the two Program Files default install locations.
+ * @returns `{ path, source }` of the first existing executable — source is
+ *   'override' | 'path' | 'default' so the caller can tell whether a bare
+ *   `pwsh.exe` inside 启动DSH.bat would also resolve — or `undefined`.
+ */
+async function resolvePwsh() {
+  const candidates = []
+  const override = process.env.DSH_PWSH_PATH
+  if (typeof override === 'string' && override.length > 0) candidates.push({ path: override, source: 'override' })
+  for (const dir of String(process.env.PATH || '').split(';')) {
+    if (dir.length > 0) candidates.push({ path: join(dir, 'pwsh.exe'), source: 'path' })
+  }
+  const pf = process.env.ProgramFiles || 'C:\\Program Files'
+  const pf86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)'
+  candidates.push({ path: join(pf, 'PowerShell\\7\\pwsh.exe'), source: 'default' })
+  candidates.push({ path: join(pf86, 'PowerShell\\7\\pwsh.exe'), source: 'default' })
+  const seen = new Set()
+  for (const candidate of candidates) {
+    if (seen.has(candidate.path)) continue
+    seen.add(candidate.path)
+    try {
+      await access(candidate.path, constants.X_OK)
+      return candidate
+    } catch { /* try the next candidate */ }
+  }
+  return undefined
+}
+
+/**
+ * Launch the updater in a VISIBLE console window so the user watches the whole
+ * run (git pull, dependency install, build) exactly like double-clicking
+ * 更新DSH.bat — instead of a hidden background process behind a flat
+ * "正在更新…" capsule. The window outlives the server (which the updater
+ * itself restarts), so it must detach from the host's job tree.
+ *
+ * `cmd /c start "" <target>` opens a brand-new console whose stdio points at
+ * that console (not at this process), so every progress line is visible:
+ *   - pwsh resolvable via PATH → run 更新DSH.bat itself (same UX as manual:
+ *     success auto-closes after ~3s, failure pauses with the error on screen)
+ *   - pwsh only via override/default paths → run update-dsh.ps1 with the
+ *     absolute executable (window closes when done; failures land in
+ *     dsh-update.log, which the capsule tooltips point at)
+ * DSH_UPDATE_SOURCE=auto flows through env so the version ledger attributes
+ * the run to the automatic path. Resolves only after the child actually
+ * spawned (or failed to) — a missing pwsh.exe is reported to the capsule
+ * instead of a silent no-op.
  * @param ctx - the mounting Cordis context.
- * @param opsDir - directory containing update-dsh.ps1.
- * @returns the launch result record.
+ * @param opsDir - directory containing update-dsh.ps1 / 更新DSH.bat.
+ * @returns `{ started: true, pid, window }` or `{ started: false, error }`.
  */
 async function launchUpdater(ctx, opsDir) {
+  const found = await resolvePwsh()
+  if (found === undefined) {
+    return { started: false, error: '未找到 pwsh 7（已尝试 DSH_PWSH_PATH、PATH、Program Files）' }
+  }
   const script = join(opsDir, 'update-dsh.ps1')
-  const child = spawn('C:\\Program Files\\PowerShell\\7\\pwsh.exe', [
-    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script,
-  ], {
-    detached: true,
-    stdio: 'ignore',
-    windowsHide: true,
-    cwd: opsDir,
+  const launcher = join(opsDir, '更新DSH.bat')
+  // '' (empty string) becomes the start command's empty window title — the
+  // canonical `start "" "target"` idiom; Node quotes the bat path only when
+  // it contains spaces, which `start` handles correctly.
+  let args
+  let window
+  if (found.source === 'path') {
+    args = ['/d', '/c', 'start', '', launcher]
+    window = launcher + '（可见窗口）'
+  } else {
+    args = ['/d', '/c', 'start', '', found.path, '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script]
+    window = script + '（可见窗口, pwsh=' + found.path + '）'
+  }
+  return await new Promise((resolve) => {
+    let settled = false
+    const settle = (value) => { if (!settled) { settled = true; resolve(value) } }
+    let child
+    try {
+      child = spawn('cmd.exe', args, {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: false,
+        cwd: opsDir,
+        env: { ...process.env, DSH_UPDATE_SOURCE: 'auto' },
+      })
+    } catch (e) {
+      settle({ started: false, error: String(e && e.message ? e.message : e) })
+      return
+    }
+    child.once('spawn', () => {
+      child.unref()
+    })
+    // cmd exits as soon as `start` has created the window; its exit code is
+    // the reliable "window actually opened" signal (0 = yes, non-zero = start
+    // failed, e.g. target path missing).
+    child.once('exit', (code) => {
+      if (code === 0) {
+        settle({ started: true, pid: child.pid !== undefined ? child.pid : 0, window })
+      } else {
+        settle({ started: false, error: 'cmd start 退出码 ' + code + '（更新窗口未能打开）' })
+      }
+    })
+    child.once('error', (e) => {
+      settle({ started: false, error: String(e && e.message ? e.message : e) })
+    })
   })
-  child.unref()
-  return { started: true, pid: child.pid !== undefined ? child.pid : 0, script }
 }
 
 /** Cache of the last successful repo status plus its fetch timestamp. */
@@ -278,7 +365,7 @@ export function apply(ctx, config = {}) {
     handler: async (_req, res) => {
       try {
         const launched = await launchUpdater(ctx, opsDir)
-        sendJson(res, 200, { ok: true, ...launched })
+        sendJson(res, launched.started ? 200 : 500, { ok: launched.started, ...launched })
       } catch (e) {
         sendJson(res, 500, { ok: false, error: 'internal: ' + String(e && e.message ? e.message : e) })
       }

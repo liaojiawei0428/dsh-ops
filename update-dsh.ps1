@@ -181,7 +181,10 @@ if (-not $killed) {
   }
 }
 Start-Sleep -Seconds 2
-pwsh.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ops 'start-dsh-web.ps1')
+# 用 $PSHOME 定位当前 pwsh 7 自身，而非裸名依赖 PATH ——
+# 非标准安装位置(如便携部署)且 PATH 无 pwsh 的机器上，裸名会让更新
+# 全部完成却重启失败，新版不生效。本脚本既由 pwsh 7 执行，$PSHOME 必然有效。
+& (Join-Path $PSHOME 'pwsh.exe') -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ops 'start-dsh-web.ps1')
 if ($LASTEXITCODE -ne 0) {
   Write-Both '服务重启失败, 请手动运行 启动DSH.bat 或查看 dsh-web.err.log'
   exit 1

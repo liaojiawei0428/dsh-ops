@@ -1,16 +1,12 @@
 # BUG 记录索引
 
-共 10 条（fixed 10 / workaround 0 / open 0）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
+共 6 条（fixed 6 / workaround 0 / open 0）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
 
 | 日期 | 记录 | 组件 | 严重度 | 状态 | 症状 |
 |---|---|---|---|---|---|
-| 2026-08-18 | [2026-08-18-update-dsh-ps1-parsererror-the-string-is](2026-08-18-update-dsh-ps1-parsererror-the-string-is.md) | dsh-ops-scripts | major | fixed | update-dsh.ps1 试运行 ParserError "The string is missing the terminator"，中文日志全部乱码 |
-| 2026-08-18 | [2026-08-18-update-dsh-ps1-dsh-web-pid-3080-start-ds](2026-08-18-update-dsh-ps1-dsh-web-pid-3080-start-ds.md) | update-dsh.ps1 | major | fixed | 自动更新完成后服务仍是旧版本：update-dsh.ps1 按过期的 dsh-web.pid 杀进程，端口 3080 实际被另一进程占用导致 start-dsh-web.ps1 直接退出 |
-| 2026-08-18 | [2026-08-18-tool-scripts-hardcoded-user-path](2026-08-18-tool-scripts-hardcoded-user-path.md) | deploy-toolchain | major | fixed | 新机部署时 validate-plugins.mjs 指向开发机用户目录（C:/Users/37868），用户名不同则闸门检查错误 profile |
-| 2026-08-18 | [2026-08-18-repo-status-404](2026-08-18-repo-status-404.md) | validate-plugins.mjs | critical | fixed | 服务重启静默失效：重启脚本卡在闸门输出后，服务器一直是旧进程，新代码（repo-status 路由等）永不加载，版本胶囊显示"版本检查失败"（404） |
-| 2026-08-18 | [2026-08-18-pnpm-run-build-ts6305-output-file-has-no](2026-08-18-pnpm-run-build-ts6305-output-file-has-no.md) | build-process | minor | fixed | pnpm run build 失败：数百个 TS6305 "Output file has not been built" 与 TS2339 声明合并错误，实际代码无任何改动问题 |
-| 2026-08-18 | [2026-08-18-path-derivation-off-by-one-level](2026-08-18-path-derivation-off-by-one-level.md) | dsh-deepseek-balance | major | fixed | 版本胶囊显示 "DSH unknown"，repo-status 报 git -C D:\Deepseek_DSH 路径不存在 |
-| 2026-08-18 | [2026-08-18-dsh-tool-python-dsh-13-05-assertsupporte](2026-08-18-dsh-tool-python-dsh-13-05-assertsupporte.md) | dsh-tool-python | critical | fixed | 新装 dsh-tool-python 插件后 DSH 无法启动：13:05 重启日志显示 assertSupportedJsonSchema 抛 UNSUPPORTED_SCHEMA 共 15 条违规 |
-| 2026-08-18 | [2026-08-18-dsh-deepseek-balance-web-gui-session-log](2026-08-18-dsh-deepseek-balance-web-gui-session-log.md) | plugin-management | major | fixed | 安装 dsh-deepseek-balance 后 Web GUI 右上角出现固定悬浮胶囊并遮挡 Session log 按钮，而非预期的会话头部并列胶囊 |
-| 2026-08-18 | [2026-08-18-dsh-3-dsh-web-stderr-log-credentials-yam](2026-08-18-dsh-3-dsh-web-stderr-log-credentials-yam.md) | dsh-ops-scripts | critical | fixed | DSH 启动失败：启动器 3 次重试全部在监听端口前崩溃，dsh-web-stderr.log 显示 .credentials.yaml YAML 解析错误 |
-| 2026-08-18 | [2026-08-18-balance-capsule-no-auto-refresh](2026-08-18-balance-capsule-no-auto-refresh.md) | dsh-deepseek-balance | minor | fixed | 余额胶囊不自动刷新：页面加载后余额一直不变，只有手动点击才更新 |
+| 2026-08-20 | [2026-08-20-update-restart-pwsh-path-dependency](2026-08-20-update-restart-pwsh-path-dependency.md) | update-dsh.ps1 | major | fixed | 非标准 pwsh 安装（不在 PATH）的电脑上，自动更新完成全部构建后服务未重启，新版不生效，旧构建继续运行。 |
+| 2026-08-20 | [2026-08-20-tool-python-store-stub-discovery](2026-08-20-tool-python-store-stub-discovery.md) | dsh-tool-python | major | fixed | 新电脑按模板部署且未配置 pythonPath 时，python 工具可能因 PATH 上的 WindowsApps 存根 python.exe 而无法执行任何任务。 |
+| 2026-08-20 | [2026-08-20-balance-capsule-click-crash](2026-08-20-balance-capsule-click-crash.md) | dsh-deepseek-balance | critical | fixed | 点击右上角版本胶囊"有新版本"后，DSH 服务进程直接崩溃退出（Web 页面断连），需手动重启 DSH。 |
+| 2026-08-20 | [2026-08-20-balance-capsule-autoupdate-pwsh-path](2026-08-20-balance-capsule-autoupdate-pwsh-path.md) | dsh-deepseek-balance | major | fixed | DSH Web 右上角版本胶囊显示"有新版本"，点击后显示"正在更新…"，但自动更新程序（update-dsh.ps1）从未运行，版本不升级。 |
+| 2026-08-20 | [2026-08-20-balance-autoupdate-invisible-progress](2026-08-20-balance-autoupdate-invisible-progress.md) | dsh-deepseek-balance | minor | fixed | 点击右上角"有新版本"后仅胶囊显示"正在更新…"，更新过程（git 拉取/依赖下载/构建）完全无进度可见，用户不清楚发生了什么。 |
+| 2026-08-19 | [2026-08-19-banmu-admin-yx-nginx-403-whitelist](2026-08-19-banmu-admin-yx-nginx-403-whitelist.md) | banmu-admin 部署 / 服务器 nginx | major | fixed | https://yx.maque.uno 后台全部路径 403 Forbidden，无法进入（admin-server/反代/证书均正常） |

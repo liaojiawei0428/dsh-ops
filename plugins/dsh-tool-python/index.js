@@ -14,9 +14,87 @@
  */
 
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { access, constants, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve as resolvePath } from 'node:path'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
+
+/**
+ * Probe one candidate interpreter: run `-c "import sys; …"` and require a
+ * Python 3 that actually executes (the WindowsApps Store stub exits
+ * non-zero / prints nothing, so it is rejected here). Resolves the REAL
+ * executable path from sys.executable — e.g. `py -3` reports the concrete
+ * python.exe behind the launcher.
+ * @param exe - candidate command/absolute path.
+ * @param prefixArgs - args before -c (['-3'] for the py launcher).
+ * @returns `{ exe }` with the resolved absolute interpreter, or undefined.
+ */
+async function probePython(exe, prefixArgs = []) {
+  try {
+    const { stdout } = await execFileAsync(exe, [...prefixArgs, '-c', 'import sys\nprint(sys.version_info[0])\nprint(sys.executable)'], {
+      timeout: 8000,
+      windowsHide: true,
+    })
+    const lines = stdout.trim().split(/\r?\n/)
+    if (lines.length < 2 || lines[0] !== '3') return undefined
+    const real = lines[1]
+    return real.length > 0 ? { exe: real } : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Common Windows install locations to scan for Python3* directories. */
+function pythonInstallRoots() {
+  const roots = []
+  if (process.env.LOCALAPPDATA) roots.push(join(process.env.LOCALAPPDATA, 'Programs', 'Python'))
+  if (process.env.ProgramFiles) roots.push(process.env.ProgramFiles)
+  if (process.env['ProgramFiles(x86)']) roots.push(process.env['ProgramFiles(x86)'])
+  return roots
+}
+
+/**
+ * Discover a Python 3 interpreter when config.pythonPath is not pinned.
+ * Order: DSH_PYTHON_PATH env → `py -3` launcher → PATH `python` (probe-
+ * verified, Store stub rejected) → Python3* directories under the standard
+ * install roots (per-user first, newest-looking name last is fine — any
+ * working 3.x beats failing). Result cached for the process lifetime.
+ * @returns the absolute interpreter path, or undefined when nothing usable.
+ */
+async function discoverPython() {
+  // 1. Explicit environment override.
+  const override = process.env.DSH_PYTHON_PATH
+  if (typeof override === 'string' && override.length > 0) {
+    const hit = await probePython(override)
+    if (hit !== undefined) return hit.exe
+  }
+  // 2. Windows py launcher (present whenever any CPython is installed).
+  const viaPy = await probePython('py', ['-3'])
+  if (viaPy !== undefined) return viaPy.exe
+  // 3. PATH python — probe-verified so the WindowsApps stub never wins.
+  const viaPath = await probePython('python')
+  if (viaPath !== undefined) return viaPath.exe
+  // 4. Standard install roots, per-user location first.
+  for (const root of pythonInstallRoots()) {
+    let names = []
+    try { names = (await readdir(root)).filter(n => /^Python3\d*/i.test(n)) } catch { continue }
+    names.sort() // Python312 < Python313 < Python314 …; prefer highest
+    for (let i = names.length - 1; i >= 0; i -= 1) {
+      const candidate = join(root, names[i], 'python.exe')
+      try { await access(candidate, constants.X_OK) } catch { continue }
+      const hit = await probePython(candidate)
+      if (hit !== undefined) return hit.exe
+    }
+  }
+  return undefined
+}
+
+/** Process-lifetime cache of the discovered interpreter (never probed twice). */
+let discoveredPython
+let discoveryInFlight
 
 /** Registry name of the tool this plugin registers. */
 const TOOL_NAME = 'python'
@@ -265,14 +343,34 @@ const TOOL_DESCRIPTION = 'Execute Python 3 code and return its stdout/stderr. '
 /**
  * Plugin body: register the `python` tool.
  * @param ctx - host root context.
- * @param config - resolved plugin config: `pythonPath` selects the interpreter
- *   (default `python`, resolved through the shell's PATH; an explicit absolute
- *   path pins the deployment and never depends on PATH).
+ * @param config - resolved plugin config: `pythonPath` pins the interpreter
+ *   absolutely (never depends on PATH). When omitted, the interpreter is
+ *   discovered per process: DSH_PYTHON_PATH env → `py -3` launcher → PATH
+ *   `python` (probe-verified, WindowsApps Store stub rejected) → Python3*
+ *   under the standard install roots — so a fresh deployment works with zero
+ *   configuration and never trips over the Store stub.
  */
 export function apply(ctx, config = {}) {
-  const pythonPath = config.pythonPath ?? 'python'
-  if (typeof pythonPath !== 'string' || pythonPath.length === 0) {
+  const pinnedPath = config.pythonPath
+  if (pinnedPath !== undefined && (typeof pinnedPath !== 'string' || pinnedPath.length === 0)) {
     throw new Error('tool-python: config.pythonPath must be a non-empty string')
+  }
+
+  /**
+   * Resolve the interpreter for one call: the pinned path, or the cached
+   * discovery (discovery runs once; concurrent callers share one probe).
+   * @returns the absolute interpreter path.
+   */
+  const interpreterForCall = async () => {
+    if (pinnedPath !== undefined) return pinnedPath
+    if (discoveredPython !== undefined) return discoveredPython
+    if (discoveryInFlight === undefined) {
+      discoveryInFlight = discoverPython().then((found) => {
+        discoveredPython = found
+        return found
+      }).finally(() => { discoveryInFlight = undefined })
+    }
+    return discoveryInFlight
   }
 
   const defaultMode = ctx.shell.sandboxMode
@@ -302,6 +400,10 @@ export function apply(ctx, config = {}) {
     },
     async execute(args, exec) {
       validateArgs(args)
+      const pythonPath = await interpreterForCall()
+      if (pythonPath === undefined) {
+        throw new Error('tool-python: 未找到可用的 Python 3（已尝试 DSH_PYTHON_PATH、py -3 启动器、PATH 上的 python、标准安装目录；PATH 上的 WindowsApps 存根已被排除）。修复：安装 Python 3（python.org），或设置 DSH_PYTHON_PATH 环境变量，或在 profile cordis.patch.yml 为 tool-python 配置 pythonPath')
+      }
       const standingPolicy = sandboxPolicy === undefined
         ? undefined
         : sandboxPolicy.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })

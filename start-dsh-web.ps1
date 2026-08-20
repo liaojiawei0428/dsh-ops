@@ -1,4 +1,10 @@
-﻿$ErrorActionPreference = 'Continue'
+﻿param(
+  # 彻底重启模式：先强制停止当前监听 3080 的服务（若有）并等待端口释放，
+  # 再走完整启动流程。默认（不带此开关）保持幂等语义：已在运行则直接打开
+  # 浏览器退出（update-dsh.ps1 等调用方依赖该语义）。
+  [switch]$Restart
+)
+$ErrorActionPreference = 'Continue'
 # 路径约定：本脚本位于 <root>\DSH-ops，官方仓库为同级 <root>\Deepseek_DSH。
 $ops = $PSScriptRoot
 $repo = Join-Path (Split-Path $ops -Parent) 'Deepseek_DSH'
@@ -24,6 +30,29 @@ $others = Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='
 if ($others) {
   Write-Both "另一个启动器已在运行 (pid $($others.ProcessId -join ',')), 本实例退出"
   exit 0
+}
+
+# 彻底重启模式：先强制停止当前服务并等待端口释放，再走完整启动。
+if ($Restart) {
+  $current = Get-NetTCPConnection -State Listen -LocalPort 3080 -ErrorAction SilentlyContinue
+  if ($current) {
+    $oldPid = $current[0].OwningProcess
+    $oldName = (Get-Process -Id $oldPid -ErrorAction SilentlyContinue).ProcessName
+    Write-Both "重启模式: 强制停止当前服务 (pid $oldPid, $oldName)..."
+    Stop-Process -Id $oldPid -Force -ErrorAction SilentlyContinue
+    $deadline = (Get-Date).AddSeconds(10)
+    while ((Get-Date) -lt $deadline) {
+      if (-not (Get-NetTCPConnection -State Listen -LocalPort 3080 -ErrorAction SilentlyContinue)) { break }
+      Start-Sleep -Milliseconds 300
+    }
+    if (Get-NetTCPConnection -State Listen -LocalPort 3080 -ErrorAction SilentlyContinue) {
+      Write-Both '重启失败: 旧服务 10 秒内未释放端口 3080, 请手动检查后重试'
+      exit 1
+    }
+    Write-Both '旧服务已停止, 端口 3080 已释放'
+  } else {
+    Write-Both '重启模式: 当前无运行中的服务, 直接启动'
+  }
 }
 
 # 已在运行则直接成功退出（随后打开浏览器）。

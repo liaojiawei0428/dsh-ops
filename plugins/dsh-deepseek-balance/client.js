@@ -173,7 +173,7 @@ window.__ModuleLoader__.load({
         title = '正在检查 DSH 版本'
       } else if (state.status === 'updating') {
         inner = React.createElement('span', null, '正在更新…')
-        title = '自动更新已启动，完成后请刷新页面'
+        title = '自动更新已启动：已弹出更新终端窗口，git 拉取/依赖安装/构建进度都在该窗口中显示；完成后服务自动重启，刷新页面即见新版'
       } else if (state.status === 'error') {
         cls += ' dsbal-err'
         inner = React.createElement('span', null, '版本检查失败')

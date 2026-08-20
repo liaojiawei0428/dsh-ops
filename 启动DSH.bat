@@ -7,8 +7,8 @@ echo.
 echo [1/2] Checking for updates...
 pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0check-update.ps1"
 echo.
-echo [2/2] Starting DSH service...
-pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0start-dsh-web.ps1"
+echo [2/2] Restarting DSH service (stop current, then start)...
+pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0start-dsh-web.ps1" -Restart
 if errorlevel 1 (
     echo.
     echo [ERROR] DSH server failed to start.

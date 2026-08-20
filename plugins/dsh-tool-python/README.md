@@ -21,23 +21,34 @@ DSH 系统组件：给模型提供原生 `python` 工具，让大模型用 Pytho
 
 | 字段 | 默认 | 说明 |
 |---|---|---|
-| `pythonPath` | `python` | 解释器路径；部署应钉绝对路径，不依赖 PATH |
+| `pythonPath` | 自动发现 | 钉死解释器路径时设置；缺省时按序自动发现（见下），新部署零配置 |
 
-部署在 profile 的 `cordis.patch.yml` 覆盖（本机示例）：
+**自动发现顺序**（仅 `pythonPath` 未配置时触发，进程内缓存一次）：
+1. `DSH_PYTHON_PATH` 环境变量
+2. Windows `py -3` 启动器（装任何 CPython 即有）→ 取其真实 exe
+3. PATH 上的 `python`（**探测验证**，WindowsApps Store 存根被排除）
+4. 标准安装位下 `Python3*` 目录（每用户目录优先）
+
+探测用 `-c "import sys; ..."` 实测版本主号，确认真能执行且为 Python 3 才采用；
+全部失败时工具返回明确错误并给出修复指引（装 Python 3 / 设 DSH_PYTHON_PATH / 配置 pythonPath）。
+
+仅当需要强制某台机器使用多个 Python 版本中的特定一个时，才在 profile 覆盖：
 
 ```yaml
 - id: tool-python
   name: dsh-tool-python
   config:
-    pythonPath: 'C:\Users\<user>\AppData\Local\Programs\Python\Python312\python.exe'
+    pythonPath: 'C:\Python313\python.exe'
 ```
 
 ## 安装（与其他 DSH-ops 插件同模式）
 
 1. profile `package.json` 的 `dependencies` 加
-   `"dsh-tool-python": "link:D:/GongJu/DSH-ops/plugins/dsh-tool-python"`
+   `"dsh-tool-python": "link:<DSH-ops 所在盘符>:/DSH/DSH-ops/plugins/dsh-tool-python"`
 2. `dsh.profile.bundles` 数组追加 `"dsh-tool-python"`
 3. profile 目录 `pnpm install`，重启 web 服务
+
+> link 路径随机器盘符不同（部署布局允许盘符自由），安装时按本机实际路径写。
 
 ## 验证
 

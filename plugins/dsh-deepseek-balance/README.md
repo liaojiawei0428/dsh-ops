@@ -15,9 +15,15 @@ DSH 系统组件：在会话头部工具条（Session log 导出按钮旁）显�
   - `/api/dsh/repo-status`：版本检查路由，读本地 `package.json` 版本号，
     经系统代理 `git fetch origin` 对比 `HEAD` 与 `origin/master`，
     结果缓存 1 小时（`?force=1` 立即重查），并发请求复用同一次 fetch。
-  - `/api/dsh/update-now`：POST 启动分离的自动更新进程
-    （`pwsh.exe -File update-dsh.ps1`，detached + unref，更新脚本自带全套
-    守卫：干净检查/备份/构建/组合预检/插件闸门/健康检查）。
+   - `/api/dsh/update-now`：POST 在**可见终端窗口**中启动自动更新
+     （`cmd /c start` 打开新控制台，进度全程可见——与手动双击 `更新DSH.bat`
+     完全一致的体验：git 拉取、依赖安装、构建输出、成功后约 3 秒自关、
+     失败时暂停显示错误）。pwsh 7 按优先级定位：`DSH_PWSH_PATH` 环境变量 →
+     `PATH` 各目录 → Program Files 默认安装位；PATH 可达时窗口直接运行
+     `更新DSH.bat`，否则用绝对 pwsh 路径运行 `update-dsh.ps1`。更新进程以
+     `DSH_UPDATE_SOURCE=auto` 运行（台账记"自动更新"），自带全套守卫：
+     干净检查/备份/构建/组合预检/插件闸门/健康检查；窗口未能打开时向胶囊
+     如实返回失败（不静默）。
 - **浏览器半端**（`client.js`）：手写 client bundle，注册
   `conversation.session.header.utilities` 两个胶囊（余额 order 100、
   版本 order 101），余额 5 分钟轮询、版本 5 分钟轮询（host 控制真实检查节奏）。
