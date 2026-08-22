@@ -16,8 +16,8 @@ if (-not (Set-ProxyEnvironment $proxy)) {
 # 2. 增量 fetch，带低速超时保护（10 秒无进展即放弃）。
 git -C $repo -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10 fetch origin 2>$null
 if ($LASTEXITCODE -ne 0) {
-  Write-Host "[更新检查] 代理已就绪 ($($proxy.Url)), 但访问 GitHub 失败" -ForegroundColor Yellow
-  Write-Host '[更新检查] 这不是本地代理问题, 可能是 VPN 节点失效或网络波动, 请切换节点后重试' -ForegroundColor Yellow
+  Write-Host '[更新检查] 网络通道已就绪 (系统代理或直连), 但访问 GitHub 失败' -ForegroundColor Yellow
+  Write-Host '[更新检查] 这不是本地通道问题, 可能是 VPN 节点失效或网络波动, 请切换节点后重试' -ForegroundColor Yellow
   exit 0
 }
 

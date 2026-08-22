@@ -1,8 +1,11 @@
-﻿# 公共库：动态系统代理读取 + 分级诊断。
+﻿# 公共库：动态系统代理读取 + 分级诊断 + 直连降级。
 # 被 check-update.ps1 / update-dsh.ps1 通过 dot-source 加载。
 # 所有文件均为 UTF-8 带 BOM（Windows PowerShell 5.1 需要）。
 
 # 从注册表读取当前系统代理（VPN 软件每次启动会自动更新这里）。
+# TUN/虚拟网卡模式的 VPN 不会开启系统代理（ProxyEnable=0），这是正常状态；
+# 因此本函数只描述"系统代理是否存在"，最终可用性由 Set-ProxyEnvironment
+# 结合直连探测决定，不再把 ProxyEnable=0 当作硬错误。
 # @returns @{ Enabled; Url; Port; Status }
 function Get-SystemProxy {
   try {
@@ -46,20 +49,47 @@ function Test-ProxyListening([int]$port) {
   return [bool]$c
 }
 
-# 应用代理：设置 git 使用的环境变量，并输出分级诊断。
-# @returns $true 代理可用（环境变量已设置）；$false 不可用（原因已输出）。
+# 直连 GitHub 探测：TCP 连接 github.com:443，3 秒超时。
+# TUN/虚拟网卡模式的 VPN 流量已全部走虚拟网卡，此探测通过即代表
+# 无需系统代理也能访问 GitHub。
+# @returns $true 直连可达；$false 不可达。
+function Test-GitHubDirect {
+  $client = [System.Net.Sockets.TcpClient]::new()
+  try {
+    $iar = $client.BeginConnect('github.com', 443, $null, $null)
+    if (-not $iar.AsyncWaitHandle.WaitOne(3000)) { return $false }
+    $client.EndConnect($iar)
+    return $true
+  } catch {
+    return $false
+  } finally {
+    $client.Close()
+  }
+}
+
+# 应用网络通道：优先系统代理（设置 git 使用的环境变量）；系统代理不可用
+# 时降级为直连探测（TUN 虚拟网卡模式），直连通过则不设置代理环境变量。
+# 输出分级诊断。
+# @returns $true 网络通道可用；$false 不可用（原因已输出）。
 function Set-ProxyEnvironment($proxy) {
-  if (-not $proxy.Enabled) {
-    Write-Host "[代理诊断] $($proxy.Status)" -ForegroundColor Yellow
-    Write-Host '[代理诊断] 这是本地配置问题: GitHub 需要代理才能访问, 请开启 VPN 软件并确认系统代理已启用' -ForegroundColor Yellow
-    return $false
+  if ($proxy.Enabled) {
+    if (-not (Test-ProxyListening $proxy.Port)) {
+      Write-Host "[代理诊断] 代理地址 $($proxy.Url) 的端口 $($proxy.Port) 没有服务在监听" -ForegroundColor Yellow
+      Write-Host '[代理诊断] 这是本地问题: VPN 软件可能未运行或未启动代理服务, 请先开启 VPN' -ForegroundColor Yellow
+      return $false
+    }
+    $env:http_proxy = $proxy.Url
+    $env:https_proxy = $proxy.Url
+    Write-Host "[代理诊断] 系统代理已就绪: $($proxy.Url)" -ForegroundColor Green
+    return $true
   }
-  if (-not (Test-ProxyListening $proxy.Port)) {
-    Write-Host "[代理诊断] 代理地址 $($proxy.Url) 的端口 $($proxy.Port) 没有服务在监听" -ForegroundColor Yellow
-    Write-Host '[代理诊断] 这是本地问题: VPN 软件可能未运行或未启动代理服务, 请先开启 VPN' -ForegroundColor Yellow
-    return $false
+  # 系统代理未启用（TUN/虚拟网卡 VPN 的正常状态）：先探直连，不直接判死。
+  Write-Host "[代理诊断] $($proxy.Status), 探测直连 GitHub..." -ForegroundColor DarkGray
+  if (Test-GitHubDirect) {
+    Write-Host '[代理诊断] 直连可达（虚拟网卡/TUN 模式）, 本次将直连访问 GitHub, 无需系统代理' -ForegroundColor Green
+    return $true
   }
-  $env:http_proxy = $proxy.Url
-  $env:https_proxy = $proxy.Url
-  return $true
+  Write-Host "[代理诊断] $($proxy.Status) 且直连 GitHub 不可达" -ForegroundColor Yellow
+  Write-Host '[代理诊断] 这是本地网络问题: 请开启 VPN 软件 (系统代理模式或 TUN 虚拟网卡模式均可)' -ForegroundColor Yellow
+  return $false
 }

@@ -1,9 +1,12 @@
 # BUG 记录索引
 
-共 6 条（fixed 6 / workaround 0 / open 0）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
+共 9 条（fixed 9 / workaround 0 / open 0）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
 
 | 日期 | 记录 | 组件 | 严重度 | 状态 | 症状 |
 |---|---|---|---|---|---|
+| 2026-08-21 | [2026-08-21-update-guard-kills-new-credential-format](2026-08-21-update-guard-kills-new-credential-format.md) | dsh-ops-deploy | major | fixed | 运行更新DSH.bat 提示".credentials.yaml 第 2 行不是合法的 KEY: value 条目 (值中不允许冒号)"并中止升级，需手动从 backups 恢复。 |
+| 2026-08-21 | [2026-08-21-tun-mode-update-chain-blocked](2026-08-21-tun-mode-update-chain-blocked.md) | dsh-ops-deploy | major | fixed | Clash TUN 虚拟网卡模式下，启动 DSH 检查更新被跳过、更新DSH.bat 报"升级中止: 系统代理未启用"，无法识别 VPN 已启动。 |
+| 2026-08-21 | [2026-08-21-agnes-img-api-params-3issues](2026-08-21-agnes-img-api-params-3issues.md) | tools/ai_img（AGNES 生图插件） | minor | fixed | 生图脚本报 400 UnsupportedParams(response_format)/422(size)/503 Service busy |
 | 2026-08-20 | [2026-08-20-update-restart-pwsh-path-dependency](2026-08-20-update-restart-pwsh-path-dependency.md) | update-dsh.ps1 | major | fixed | 非标准 pwsh 安装（不在 PATH）的电脑上，自动更新完成全部构建后服务未重启，新版不生效，旧构建继续运行。 |
 | 2026-08-20 | [2026-08-20-tool-python-store-stub-discovery](2026-08-20-tool-python-store-stub-discovery.md) | dsh-tool-python | major | fixed | 新电脑按模板部署且未配置 pythonPath 时，python 工具可能因 PATH 上的 WindowsApps 存根 python.exe 而无法执行任何任务。 |
 | 2026-08-20 | [2026-08-20-balance-capsule-click-crash](2026-08-20-balance-capsule-click-crash.md) | dsh-deepseek-balance | critical | fixed | 点击右上角版本胶囊"有新版本"后，DSH 服务进程直接崩溃退出（Web 页面断连），需手动重启 DSH。 |

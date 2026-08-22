@@ -30,21 +30,81 @@ Write-Both '本地工作区干净 OK'
 
 # 1.5 用户配置完整性校验（在动任何东西之前）。
 # 背景: .credentials.yaml 一旦损坏, 凭据插件按设计 fail-loud, 进程在监听端口前
-# 就退出, 启动器重试全部失败。该文件设计上是扁平的 KEY: value 结构,
-# 值里不允许出现冒号 —— 行内出现第二个 ": " 即为损坏特征。
-$credPath = Join-Path $env:USERPROFILE '.dsh\.credentials.yaml'
-if (Test-Path $credPath) {
+# 就退出, 启动器重试全部失败。文件有两代合法形态, 校验须同时认:
+#   A. 新版 (dsh 0.1.1-rc.1+, credentials-local parseCredentialsDocument):
+#        顶层键只允许 version / refs / records; refs 值为非空标量;
+#      B. 旧版扁平 KEY: value (无 version 顶层键)——新版启动时自动迁移,
+#        守卫不应拦截。
+# 标量值规则: YAML 中 "冒号后跟空格" (: ) 无引号时非法; "冒号后跟非空格"
+# (如 sk-abc:def) 合法 —— 旧守卫"值中不允许冒号"的假设已过时。
+function Test-CredentialsYamlShape {
+  param([string]$Path)
+  $topKeys = @('version', 'refs', 'records')
+  try { $raw = Get-Content $Path } catch { return "无法读取文件 ${Path}: $($_.Exception.Message)" }
+  $section = $null
+  $sectionIndent = -1
+  $sawVersion = $false
+  $flatKeys = @()
   $lineNo = 0
-  foreach ($line in (Get-Content $credPath)) {
+  foreach ($line in $raw) {
     $lineNo++
-    if ($line -match '^\s*(#.*)?$') { continue }
-    if ($line -notmatch '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^:]+?)\s*$') {
-      Write-Both "错误: $credPath 第 $lineNo 行不是合法的 KEY: value 条目 (值中不允许冒号)"
-      Write-Both "恢复: 从 $env:USERPROFILE\.dsh\backups\<时间戳>\ 复制最近的备份"
-      exit 1
+    $trimmed = $line.Trim()
+    if ($trimmed -eq '' -or $trimmed -match '^#') { continue }
+    $indent = $line.Length - $line.TrimStart().Length
+    if ($line -notmatch '^\s*([^\s:][^:]*?)\s*:\s*(.*?)\s*$') {
+      return "第 $lineNo 行不是合法的 KEY: value 条目"
+    }
+    $key = $Matches[1]
+    $value = $Matches[2]
+    if ($indent -eq 0) {
+      if ($key -in $topKeys) {
+        if ($key -eq 'version') {
+          $sawVersion = $true
+          if ($value -notmatch '^\d+$') { return "第 $lineNo 行 version 值非法: '$value'" }
+        } else {
+          if ($value -ne '') { return "第 $lineNo 行 $key 为块首, 不允许内联值" }
+          $section = $key
+          $sectionIndent = -1
+        }
+      } else {
+        if ($sawVersion) { return "第 $lineNo 行顶层键 '$key' 不在 {version, refs, records} 内" }
+        $flatKeys += $key
+      }
+    } else {
+      # 缩进行
+      if ($null -eq $section) { return "第 $lineNo 行出现缩进但没有上层块 (结构损坏)" }
+      if ($sectionIndent -lt 0) { $sectionIndent = $indent }
+      if ($indent -lt $sectionIndent) { return "第 $lineNo 行缩进小于块缩进 (结构损坏)" }
+      if ($section -eq 'refs') {
+        if ($indent -ne $sectionIndent) { return "第 $lineNo 行 refs 块内出现更深嵌套 (refs 值应为标量)" }
+        if ($key -notmatch '^[A-Za-z_][A-Za-z0-9_-]*$') { return "第 $lineNo 行 refs 键名非法: '$key'" }
+        if ($value -eq '') { return "第 $lineNo 行 refs 键 '$key' 值不能为空" }
+      }
+      # records 块允许任意层级, 只做行级检查
+      if ($value -match ':\s' -and -not $value.StartsWith('"') -and -not $value.StartsWith("'")) {
+        return "第 $lineNo 行值含非法 ': ' 序列 (YAML 标量不允许; 需加引号)"
+      }
     }
   }
-  Write-Both '凭据文件结构 OK'
+  # 旧扁平格式 (无 version): 顶层键都应在缩进制, 且值合法; 允许被新版自动迁移
+  if (-not $sawVersion) {
+    $bad = $flatKeys | Where-Object { $_ -notmatch '^[A-Za-z_][A-Za-z0-9_-]*$' }
+    if ($bad) { return "扁平格式存在非法键: '$($bad -join ', ')'" }
+  } elseif ($flatKeys.Count -gt 0) {
+    return "混合格式: 既有 version 又有扁平顶层键 '$($flatKeys -join ', ')' (结构损坏)"
+  }
+  return $null
+}
+
+$credPath = Join-Path $env:USERPROFILE '.dsh\.credentials.yaml'
+if (Test-Path $credPath) {
+  $shapeError = Test-CredentialsYamlShape -Path $credPath
+  if ($null -ne $shapeError) {
+    Write-Both "错误: $credPath $shapeError"
+    Write-Both "恢复: 从 $env:USERPROFILE\.dsh\backups\<时间戳>\ 复制最近的备份"
+    exit 1
+  }
+  Write-Both '凭据文件结构 OK (支持新嵌套格式与旧扁平格式)'
 }
 
 # 1.6 备份用户配置（升级出错时可立即恢复; 含密钥, 必须留在本机, 不可提交仓库）。
@@ -62,20 +122,20 @@ Write-Both "用户配置已备份到 $backupDir"
 $oldVer = 'unknown'
 try { $oldVer = (Get-Content (Join-Path $repo 'package.json') -Raw | ConvertFrom-Json).version } catch {}
 
-# 2. 代理诊断（本地问题在此明确中止）。
+# 2. 网络通道诊断（系统代理 或 虚拟网卡直连，本地问题在此明确中止）。
 $proxy = Get-SystemProxy
 if (-not (Set-ProxyEnvironment $proxy)) {
-  Write-Both "升级中止: $($proxy.Status)"
-  Write-Both '提示: 这是本地配置问题, 请开启 VPN 并确认系统代理已启用后重试'
+  Write-Both "升级中止: $($proxy.Status) 且直连 GitHub 不可达"
+  Write-Both '提示: 这是本地网络问题, 请开启 VPN (系统代理模式或 TUN 虚拟网卡模式均可) 后重试'
   exit 1
 }
-Write-Both "使用系统代理: $($proxy.Url)"
+if ($proxy.Enabled) { Write-Both "网络通道: 系统代理 $($proxy.Url)" } else { Write-Both '网络通道: 直连 (虚拟网卡/TUN 模式)' }
 
-# 3. 获取远端信息（走动态代理）。
+# 3. 获取远端信息（走动态代理或直连）。
 Write-Both '正在检查远端更新 (git fetch)...'
 git -C $repo -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10 fetch origin 2>$null
 if ($LASTEXITCODE -ne 0) {
-  Write-Both '升级中止: 代理已就绪但访问 GitHub 失败 (可能是 VPN 节点失效或网络波动)'
+  Write-Both '升级中止: 网络通道已就绪但访问 GitHub 失败 (可能是 VPN 节点失效或网络波动)'
   Write-Both '请切换 VPN 节点或检查网络后重试'
   exit 1
 }
