@@ -27,9 +27,7 @@
 脚本从自身位置推导仓库路径（`$PSScriptRoot`/`%~dp0`/`import.meta.url`），
 **只要结构成立，任何盘符都能零修改工作**。
 
-唯一需要写入具体路径的地方：profile 的 `link:` 依赖与 `pythonPath`（见第 3 步）。
-`restart-dsh-web.ps1` 在 `~/.dsh` 下（不在 DSH-ops 里），通过 `DSH_OPS_DIR`
-环境变量定位（默认 `D:\GongJu\DSH-ops`，非默认布局时设置即可）。
+唯一需要写入具体路径的地方：profile 的 `link:` 依赖（见第 3 步）。启动/更新/插件等其余全部自定位，无外部环境变量约定。
 
 ---
 
@@ -59,13 +57,14 @@ git clone https://github.com/deepseek-ai/deepseek-harness.git <盘符>:\DSH\Deep
 git clone https://github.com/liaojiawei0428/dsh-ops.git <盘符>:\DSH\DSH-ops
 ```
 
-clone 官方仓库后**必须 checkout 到开发机当前版本**（以 [version-history.md](version-history.md) 台账最新行为准）：
+clone 官方仓库后**必须 checkout 到与开发机一致的版本**（版本台账 [version-history.md](version-history.md) 为准，当前 `dsh-v0.1.1-rc.2`）：
 
 ```powershell
-git -C <盘符>:\DSH\Deepseek_DSH checkout 99f6f02fecdb7dff40c3fbc9470f5907c29f74ca
+git -C <盘符>:\DSH\Deepseek_DSH checkout dsh-v0.1.1-rc.2
 ```
 
-> 以后升级一律用 `更新DSH.bat`（自动拉取官方最新并 checkout），勿手工切换版本。
+> 以后开发机升级出新版本时，将本行 tag 同步推进（台账每行自带提交号）；
+> 日常升级一律用 `更新DSH.bat`（自动拉取官方最新），勿手工切换版本。
 
 ---
 
@@ -75,7 +74,7 @@ git -C <盘符>:\DSH\Deepseek_DSH checkout 99f6f02fecdb7dff40c3fbc9470f5907c29f7
 cd <盘符>:\DSH\Deepseek_DSH
 pnpm install --frozen-lockfile
 pnpm run build
-node apps\cli\lib\bin.js --version   # 应输出 0.1.0-rc.7
+node apps\cli\lib\bin.js --version   # 应输出 0.1.1-rc.2（与第 1 步 checkout 的版本一致）
 ```
 
 ---
@@ -155,14 +154,19 @@ Copy-Item <盘符>:\DSH\DSH-ops\config\settings.yaml %USERPROFILE%\.dsh\settings
 
 **API 密钥**（含密钥，永不入 git，每机独立）：
 
-编辑 `%USERPROFILE%\.dsh\.credentials.yaml`（两行 `KEY: value` 格式）：
+编辑 `%USERPROFILE%\.dsh\.credentials.yaml`。**当前 DSH 使用新版嵌套格式**
+（0.1.1+ 凭据体系，`version: 1` + `refs:` 块，两空格缩进）：
 
 ```yaml
-DEEPSEEK_API_KEY: sk-你的deepseek密钥
-ZAI_API_KEY: 你的智谱密钥
+version: 1
+refs:
+  DEEPSEEK_API_KEY: sk-你的deepseek密钥
+  ZAI_API_KEY: 你的智谱密钥
+  OPENCODE_GO_API_KEY: 你的opencode-go密钥
 ```
 
 > 也可先留空启动，在 Web 界面 设置 → 模型中填写，效果相同。
+> 升级守卫（update-dsh.ps1）同时认新版嵌套与旧扁平两种格式，兼容无忧。
 
 ---
 
@@ -184,10 +188,10 @@ node <盘符>:\DSH\Deepseek_DSH\apps\cli\lib\bin.js --profile web --dump-config
 
 启动后检查：
 
-- 会话头部出现 **余额胶囊** 与 **版本胶囊**（`DSH版本号：0.1.0-rc.7`）
-- 悬停版本胶囊：`本地提交` 与 `官方最新` 一致
+- 会话头部出现 **余额胶囊** 与 **版本胶囊**（`DSH版本号：0.1.1-rc.2`）
+- 悬停版本胶囊：`本地提交` 与 `官方最新` 一致（首次部署时官方可能已更新，属正常；用 `更新DSH.bat` 对齐即可）
 - 模型工具列表含 `python`、`bug_report`、`bug_search`、`bug_stats`
-- `http://127.0.0.1:3080/api/dsh/repo-status` 返回 `{"version":"0.1.0-rc.7",...}`
+- `http://127.0.0.1:3080/api/dsh/repo-status` 返回 `{"version":"0.1.1-rc.2",...}`
 
 ---
 

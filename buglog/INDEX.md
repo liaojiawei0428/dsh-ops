@@ -1,9 +1,10 @@
 # BUG 记录索引
 
-共 9 条（fixed 9 / workaround 0 / open 0）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
+共 10 条（fixed 10 / workaround 0 / open 0）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
 
 | 日期 | 记录 | 组件 | 严重度 | 状态 | 症状 |
 |---|---|---|---|---|---|
+| 2026-08-22 | [2026-08-22-deploy-doc-stuck-at-rc7](2026-08-22-deploy-doc-stuck-at-rc7.md) | dsh-ops-deploy | major | fixed | 新电脑按 DEPLOY.md 部署会得到 0.1.0-rc.7 旧版 DSH，凭据写入旧扁平格式，与开发机 0.1.1-rc.2 环境不一致。 |
 | 2026-08-21 | [2026-08-21-update-guard-kills-new-credential-format](2026-08-21-update-guard-kills-new-credential-format.md) | dsh-ops-deploy | major | fixed | 运行更新DSH.bat 提示".credentials.yaml 第 2 行不是合法的 KEY: value 条目 (值中不允许冒号)"并中止升级，需手动从 backups 恢复。 |
 | 2026-08-21 | [2026-08-21-tun-mode-update-chain-blocked](2026-08-21-tun-mode-update-chain-blocked.md) | dsh-ops-deploy | major | fixed | Clash TUN 虚拟网卡模式下，启动 DSH 检查更新被跳过、更新DSH.bat 报"升级中止: 系统代理未启用"，无法识别 VPN 已启动。 |
 | 2026-08-21 | [2026-08-21-agnes-img-api-params-3issues](2026-08-21-agnes-img-api-params-3issues.md) | tools/ai_img（AGNES 生图插件） | minor | fixed | 生图脚本报 400 UnsupportedParams(response_format)/422(size)/503 Service busy |
