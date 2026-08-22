@@ -50,21 +50,17 @@
 > 两个仓库必须并列放在该目录下：
 
 ```powershell
-# 官方仓库（私有，需 GitHub 凭据；VPN 需先开）
+# 官方仓库（clone 默认分支即官方最新，无需指定版本；VPN 需先开）
 git clone https://github.com/deepseek-ai/deepseek-harness.git <盘符>:\DSH\Deepseek_DSH
 
 # DSH-ops 仓库
 git clone https://github.com/liaojiawei0428/dsh-ops.git <盘符>:\DSH\DSH-ops
 ```
 
-clone 官方仓库后**必须 checkout 到与开发机一致的版本**（版本台账 [version-history.md](version-history.md) 为准，当前 `dsh-v0.1.1-rc.2`）：
-
-```powershell
-git -C <盘符>:\DSH\Deepseek_DSH checkout dsh-v0.1.1-rc.2
-```
-
-> 以后开发机升级出新版本时，将本行 tag 同步推进（台账每行自带提交号）；
-> 日常升级一律用 `更新DSH.bat`（自动拉取官方最新），勿手工切换版本。
+> **不指定版本**：克隆得到的即为官方最新，与后续 `更新DSH.bat` 的升级路径一致。
+> 本指南只在官方变更影响部署步骤时（如凭据格式、目录结构）才更新；常规版本
+> 迭代不修改本指南。如确需复刻特定历史版本（非常规操作），以版本台账
+> [version-history.md](version-history.md) 为准 checkout 对应 tag 即可。
 
 ---
 
@@ -74,7 +70,7 @@ git -C <盘符>:\DSH\Deepseek_DSH checkout dsh-v0.1.1-rc.2
 cd <盘符>:\DSH\Deepseek_DSH
 pnpm install --frozen-lockfile
 pnpm run build
-node apps\cli\lib\bin.js --version   # 应输出 0.1.1-rc.2（与第 1 步 checkout 的版本一致）
+node apps\cli\lib\bin.js --version   # 应输出 0.1.x-rc.x（与克隆时的官方最新一致，不写死）
 ```
 
 ---
@@ -188,10 +184,10 @@ node <盘符>:\DSH\Deepseek_DSH\apps\cli\lib\bin.js --profile web --dump-config
 
 启动后检查：
 
-- 会话头部出现 **余额胶囊** 与 **版本胶囊**（`DSH版本号：0.1.1-rc.2`）
-- 悬停版本胶囊：`本地提交` 与 `官方最新` 一致（首次部署时官方可能已更新，属正常；用 `更新DSH.bat` 对齐即可）
+- 会话头部出现 **余额胶囊** 与 **版本胶囊**（版本号与克隆源一致，不写死）
+- 悬停版本胶囊：`本地提交` 与 `官方最新` 一致（发布节奏不同时属正常；用 `更新DSH.bat` 对齐）
 - 模型工具列表含 `python`、`bug_report`、`bug_search`、`bug_stats`
-- `http://127.0.0.1:3080/api/dsh/repo-status` 返回 `{"version":"0.1.1-rc.2",...}`
+- `http://127.0.0.1:3080/api/dsh/repo-status` 返回 `{"version":"0.1.x-rc.x",...}`
 
 ---
 
@@ -213,7 +209,7 @@ node <盘符>:\DSH\Deepseek_DSH\apps\cli\lib\bin.js --profile web --dump-config
 |---|---|
 | 密钥/模型设置 | 每台机器独立，见第 4 步 |
 | 网络通道/VPN | 每台机器独立（GitHub 访问必需）。支持两种模式，脚本自动识别：系统代理模式（注册表 ProxyEnable=1）或 TUN 虚拟网卡模式（直连探测通过）。均不可用时更新链明确报错且不假更新 |
-| DSH 官方仓库版本 | 各机器可能停在各自升级时的版本；以版本台账为准，用 `更新DSH.bat` 对齐 |
+| DSH 官方仓库版本 | 各机器克隆/升级时点不同，各自保持官方最新；版本记录见台账，无需特定对齐 |
 | pwsh 7 非标准位置 | pwsh 定位链（版本胶囊自动更新 + update-dsh.ps1 重启）：`DSH_PWSH_PATH` 环境变量 → PATH 各目录 → `C:\Program Files\PowerShell\7`。标准安装零配置；便携/自定义路径时**必须**（其一）：① 把 pwsh 目录加入系统 PATH（推荐）；② 设系统环境变量 `DSH_PWSH_PATH` 指向 pwsh.exe 完整路径。另需把 profile `cordis.patch.yml` 的 `pwshPath` 改为实际路径，否则 pwsh 沙箱工具会静默降级 5.1（中文乱码，见 buglog）。找不到 pwsh 7 时胶囊会明确报"更新启动失败"，不会静默假更新 |
 | pwsh 不可用时执行任务 | **不需要** pwsh 可用才能跑任务：DSH 会话内 `python` 工具（dsh-tool-python）与 `pwsh` 工具走同一 shell 执行器，但解释器解析完全独立——pythonPath 缺省时自动发现（DSH_PYTHON_PATH → py -3 → PATH python 探测验证 → 标准安装位），且强制 UTF-8 输出，**即使 pwsh 7 缺失也能用 Python 执行计算/数据处理任务**。唯一硬依赖：机器上至少有一个可用的 Python 3（python.org 标准安装即满足）。更新/启动链路仍要求 pwsh 7（BOM/GBK 事故禁用 5.1），见上一行 |
 
