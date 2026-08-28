@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-api-gateway",
-  "description": "Typert Remote Host dispatcher and Client API endpoint",
+  "description": "Typert 远程调度器：Host 侧请求分发与客户端 API 端点",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

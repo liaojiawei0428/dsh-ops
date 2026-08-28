@@ -17,6 +17,13 @@ export interface PluginInventoryEntry {
   readonly entryId: PluginEntryId
   /** Exact module specifier imported by the Loader entry. */
   readonly moduleName: string
+  /**
+   * Package manifest `description` of the entry's module, resolved for
+   * display in trusted client UIs. Null when no package manifest is
+   * resolvable for the specifier: `cordis:` builtins, unresolvable or
+   * not-installed rows, and manifest JSON without a usable description.
+   */
+  readonly description: string | null
   /** Effective Loader enablement, including disabled ancestor groups. */
   readonly enabled: boolean
   readonly fiberPhase: PluginFiberPhase

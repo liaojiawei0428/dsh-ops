@@ -20,15 +20,30 @@ function props(list: PluginInventorySettingsTabInjected['list']): PluginInventor
   } as PluginInventorySettingsTabProps
 }
 
+const HMR_DESCRIPTION = 'Hot reload for dynamic client plugin bundles.'
+const PICKER_DESCRIPTION = 'Native directory picker host integration.'
+
 const SNAPSHOT = {
   entries: [
-    { entryId: '8a1b2c3d', moduleName: '@deepseek-ai/cordis-plugin-hmr', enabled: true, fiberPhase: 'active' },
-    { entryId: 'pending', moduleName: 'cordis:pending-name', enabled: true, fiberPhase: 'pending' },
-    { entryId: 'loading', moduleName: '@fixture/loading-name', enabled: true, fiberPhase: 'loading' },
-    { entryId: 'failed', moduleName: '@fixture/failed-name', enabled: true, fiberPhase: 'failed' },
-    { entryId: 'unloading', moduleName: '@fixture/unloading-name', enabled: true, fiberPhase: 'unloading' },
-    { entryId: 'unobserved', moduleName: '@fixture/unobserved-name', enabled: true, fiberPhase: null },
-    { entryId: 'disabled-entry', moduleName: '@deepseek-ai/dsh-host-directory-picker-native', enabled: false, fiberPhase: null },
+    {
+      entryId: '8a1b2c3d',
+      moduleName: '@deepseek-ai/cordis-plugin-hmr',
+      description: HMR_DESCRIPTION,
+      enabled: true,
+      fiberPhase: 'active',
+    },
+    { entryId: 'pending', moduleName: 'cordis:pending-name', description: null, enabled: true, fiberPhase: 'pending' },
+    { entryId: 'loading', moduleName: '@fixture/loading-name', description: null, enabled: true, fiberPhase: 'loading' },
+    { entryId: 'failed', moduleName: '@fixture/failed-name', description: null, enabled: true, fiberPhase: 'failed' },
+    { entryId: 'unloading', moduleName: '@fixture/unloading-name', description: null, enabled: true, fiberPhase: 'unloading' },
+    { entryId: 'unobserved', moduleName: '@fixture/unobserved-name', description: null, enabled: true, fiberPhase: null },
+    {
+      entryId: 'disabled-entry',
+      moduleName: '@deepseek-ai/dsh-host-directory-picker-native',
+      description: PICKER_DESCRIPTION,
+      enabled: false,
+      fiberPhase: null,
+    },
   ],
 } as unknown as Snapshot
 
@@ -57,28 +72,45 @@ describe('PluginInventorySettingsTab', () => {
     ]) {
       expect(screen.getByRole('img', { name: value })).toBeTruthy()
     }
-    const active = screen.getByRole('button', { name: 'hmr, Mounted, Enabled' })
+    const active = screen.getByRole(
+      'button',
+      { name: `hmr, ${HMR_DESCRIPTION}, Mounted, Enabled` },
+    )
     expect(active.getAttribute('aria-expanded')).toBe('false')
+    expect(view.container.querySelector('[data-plugin-summary]')?.textContent).toBe(HMR_DESCRIPTION)
     fireEvent.click(active)
     expect(active.getAttribute('aria-expanded')).toBe('true')
     expect(view.container.querySelector('[data-loader-entry]')?.textContent).toBe('8a1b2c3d')
+    expect(view.container.querySelector('[data-plugin-description]')?.textContent)
+      .toBe(HMR_DESCRIPTION)
     expect(screen.getByText(en.configuration)).toBeTruthy()
     expect(screen.getByText(en.cordis)).toBeTruthy()
     fireEvent.click(active)
     expect(view.container.querySelector('[data-loader-entry]')).toBeNull()
+
+    const waiting = screen.getByRole(
+      'button',
+      { name: 'pending-name, Waiting for dependencies, Enabled' },
+    )
+    fireEvent.click(waiting)
+    expect(view.container.querySelector('[data-plugin-description]')?.textContent)
+      .toBe(en.descriptionMissing)
 
     fireEvent.click(active)
     fireEvent.change(screen.getByRole('searchbox', { name: en.search }), {
       target: { value: 'disabled-entry' },
     })
     expect(view.container.querySelector('[data-loader-entry]')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'directory-picker-native, Disabled' }))
+    fireEvent.click(screen.getByRole(
+      'button',
+      { name: `directory-picker-native, ${PICKER_DESCRIPTION}, Disabled` },
+    ))
     expect(screen.getAllByText(en.disabledTag)).toHaveLength(2)
     expect(screen.queryByText(en.cordis)).toBeNull()
     expect(screen.queryByText(en.unobserved)).toBeNull()
   })
 
-  it('filters by module name or Loader entry id', async () => {
+  it('filters by module name, Loader entry id, or description text', async () => {
     render(<PluginInventorySettingsTab {...props(async () => SNAPSHOT)} />)
     const search = await screen.findByRole('searchbox', { name: en.search })
 
@@ -87,6 +119,10 @@ describe('PluginInventorySettingsTab', () => {
     expect(screen.getByText('directory-picker-native')).toBeTruthy()
 
     fireEvent.change(search, { target: { value: 'cordis-plugin-hmr' } })
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.getByText('hmr')).toBeTruthy()
+
+    fireEvent.change(search, { target: { value: HMR_DESCRIPTION.slice(0, 20) } })
     expect(screen.getAllByRole('listitem')).toHaveLength(1)
     expect(screen.getByText('hmr')).toBeTruthy()
 

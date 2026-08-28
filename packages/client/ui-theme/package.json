@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-theme",
-  "description": "Theme plugin: Host bootstrap for the pre-plugin palette; DOM-free ThemeRuntime for light/dark/system state; --dsw-* token styles and Appearance settings row",
+  "description": "主题插件：插件加载前的调色板 Host 引导、面向浅色/深色/跟随系统的免 DOM ThemeRuntime、--dsw-* 令牌样式与外观设置行",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

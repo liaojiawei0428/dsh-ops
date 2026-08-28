@@ -56,7 +56,7 @@ function moduleShortName(moduleName: string): string {
 /** Whether an inventory row matches the local catalog query. */
 function matches(entry: PluginInventoryEntry, normalizedQuery: string): boolean {
   if (normalizedQuery.length === 0) return true
-  return [entry.moduleName, entry.entryId]
+  return [entry.moduleName, entry.entryId, entry.description ?? '']
     .some(value => value.toLocaleLowerCase().includes(normalizedQuery))
 }
 
@@ -131,6 +131,7 @@ export function PluginInventorySettingsTab({ list, t }: PluginInventorySettingsT
               {filteredEntries.map((entry) => {
                 const status = phaseLabel(entry.fiberPhase, t)
                 const title = moduleShortName(entry.moduleName)
+                const description = entry.description ?? null
                 const configuration = t(entry.enabled ? 'enabledTag' : 'disabledTag')
                 const open = expanded === entry.entryId
                 const detailId = `${catalogId}-details-${encodeURIComponent(entry.entryId)}`
@@ -146,12 +147,22 @@ export function PluginInventorySettingsTab({ list, t }: PluginInventorySettingsT
                       type="button"
                       aria-expanded={open}
                       aria-controls={detailId}
-                      aria-label={entry.enabled ? `${title}, ${status}, ${configuration}` : `${title}, ${configuration}`}
+                      aria-label={[
+                        title,
+                        description,
+                        entry.enabled ? status : '',
+                        configuration,
+                      ].filter(Boolean).join(', ')}
                       onClick={() => {
                         setExpanded(current => current === entry.entryId ? null : entry.entryId)
                       }}
                     >
-                      <strong className={css.cardTitle} title={entry.moduleName}>{title}</strong>
+                      <span className={css.cardHeading}>
+                        <strong className={css.cardTitle} title={entry.moduleName}>{title}</strong>
+                        {description ? (
+                          <span className={css.cardSummary} data-plugin-summary>{description}</span>
+                        ) : null}
+                      </span>
                       <span className={css.cardTrailing}>
                         {entry.enabled ? (
                           <span
@@ -172,6 +183,10 @@ export function PluginInventorySettingsTab({ list, t }: PluginInventorySettingsT
                       <div className={css.cardDetails} id={detailId}>
                         <code className={css.entryValue} data-loader-entry>{entry.entryId}</code>
                         <dl className={css.details}>
+                          <div>
+                            <dt>{t('descriptionLabel')}</dt>
+                            <dd data-plugin-description>{description ?? t('descriptionMissing')}</dd>
+                          </div>
                           <div>
                             <dt>{t('configuration')}</dt>
                             <dd>{configuration}</dd>

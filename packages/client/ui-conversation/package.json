@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-conversation",
-  "description": "Conversation domain: skeleton, ordered chat flow, composer with the Host-backed busy-Enter preference, and details host",
+  "description": "会话域：骨架、有序聊天流、带 Host 忙碌回车偏好的输入框以及详情宿主",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

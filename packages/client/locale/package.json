@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-locale",
-  "description": "Locale plugin: Host-backed zh/en preference, browser-derived fallback, locale snapshots, and typed namespace dictionaries",
+  "description": "语言环境插件：Host 存储的中英偏好、浏览器推导回退、locale 快照与带类型的命名空间词典",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

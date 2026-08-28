@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-modules",
-  "description": "Client module system, dual-face: node half composes the __DSH_BOOT__ entry graph (incremental dsh.client scan, bundle route, index tap, webPlugins service); browser half is the lazy-CJS module table the vendored cordis Loader consumes as its internal seam",
+  "description": "客户端模块系统（双面）：node 半部组装 __DSH_BOOT__ 条目图（增量 dsh.client 扫描、bundle 路由、index 挂钩、webPlugins 服务），浏览器半部是 vendored cordis Loader 作为内部接缝消费的懒加载 CJS 模块表",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

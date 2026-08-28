@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-jobs",
-  "description": "Session-header background-job list: live registry state mirrored from session/jobs frames",
+  "description": "会话头部后台任务列表：从 session/jobs 帧镜像的实时注册表状态",
   "version": "0.1.1-rc.2",
   "type": "module",
   "main": "lib/index.js",

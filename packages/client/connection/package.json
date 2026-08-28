@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-connection",
-  "description": "Wire consumer layer: HTTP-up/WebSocket-down client, ConnectionController dual streams with reconnect, and fixture api",
+  "description": "线上消费层：HTTP 上行/WebSocket 下行客户端、带重连的 ConnectionController 双流以及夹具 API",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

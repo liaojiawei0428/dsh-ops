@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-tool",
-  "description": "Client Tool call-tree renderer and keyed per-tool presentation slot",
+  "description": "客户端 Tool 调用树渲染器与按键控的工具展示槽位",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-base",
-  "description": "The shared dsh core as a profile bundle: every profile's first patch layer, inserting the base plugin rows over the empty profile root",
+  "description": "dsh 共享核心的 profile 捆绑包：每个 profile 的第一层补丁，在空 profile 根上插入基础插件行",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-root",
   "version": "0.1.1-rc.2",
+  "description": "DeepSeek Harness: plugin-based agent harness on vendored Cordis.",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -97,6 +98,7 @@
     "website:dev": "pnpm run docs:dev",
     "website:build": "pnpm run docs:build",
     "verify-package-readme-limitations": "tsx scripts/verify-package-readme-limitations.ts",
+    "verify-package-descriptions": "tsx scripts/verify-package-descriptions.ts",
     "verify-node-next-types": "tsx scripts/verify-node-next-types.ts",
     "verify-optional-dependency-imports": "tsx scripts/verify-optional-dependency-imports.ts",
     "verify-runtime-closure": "tsx scripts/verify-runtime-closure.ts",

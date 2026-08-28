@@ -2,7 +2,9 @@
 
 English | [中文](README.zh.md)
 
-Read-only Host projection of the current Cordis Loader tree. `PluginInventoryGateway` registers the `pluginInventory` service and publishes one generated direct Remote, `pluginInventory/list`. Every call reads `ctx.loader.entries()` directly, skips structural group rows, and returns the remaining entries in Loader order with only their Loader entry id, module specifier, effective enablement, and current root Fiber phase.
+Read-only Host projection of the current Cordis Loader tree. `PluginInventoryGateway` registers the `pluginInventory` service and publishes one generated direct Remote, `pluginInventory/list`. Every call reads `ctx.loader.entries()` directly, skips structural group rows, and returns the remaining entries in Loader order with only their Loader entry id, module specifier, manifest description, effective enablement, and current root Fiber phase.
+
+The description is the entry module's package manifest `description`, read through the healed `$DSH_HOME/profiles/node_modules` fallback that every profile-booted row resolves through. Each name is probed at `<module>/package.json` and then at the owning package root, so subpath rows (for example `@scope/pkg/startup`) report the package text; unresolvable names (`cordis:` builtins, not-installed rows) and manifests without usable text project `null` instead of failing the snapshot.
 
 The phase is `pending`, `loading`, `active`, `failed`, or `unloading`; it is `null` when the entry has no live root Fiber. The snapshot is intentionally point-in-time: Loader remains the sole lifecycle authority, while this package owns no cache, history, provenance model, event stream, or mutation path. Its public payload types live under `./types`, and Typert generates the Host and Client Remote artifacts exposed by `./typert` and `./remote`.
 

@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-headless",
-  "description": "The dsh one-shot bundle: a direct core Agent/Session runner over dsh-base with no Host, HTTP, or browser layer",
+  "description": "dsh 一次性任务捆绑包：在 dsh-base 之上直接运行核心 Agent/Session，不含 Host、HTTP 或浏览器层",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-subagent-codex",
-  "description": "One-shot Codex subagent provider over the official app-server protocol",
+  "description": "基于官方 app-server 协议的一次性 Codex 子代理提供者",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-web-app",
-  "description": "The dsh browser-surface bundle: the web patch layer over dsh-base plus the runtime glue plugin (frontend dist serving, web-surface prompt, bash runtime variables, URL line)",
+  "description": "dsh 浏览器界面捆绑包：dsh-base 的 Web 补丁层加运行时胶水插件（前端 dist 服务、web 界面提示词、bash 运行时变量、URL 行）",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

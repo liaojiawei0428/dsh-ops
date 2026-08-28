@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-plan",
-  "description": "Plan-mode composer control: the conversation.input.plan seat over the plan projection and the /plan command channel",
+  "description": "计划模式输入控制：占据 conversation.input.plan 席位，读取计划投影并接 /plan 命令通道",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

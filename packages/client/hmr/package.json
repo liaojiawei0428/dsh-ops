@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-hmr",
-  "description": "Dev-only hot-reload driver for script-loaded client entries: SSE rebuilt frames → invalidate/prefetch → fiber swap through the vendored Loader entry",
+  "description": "仅供开发的脚本加载客户端条目热重载驱动：SSE 重建帧 → 失效/预取 → 经 vendored Loader 条目完成 fiber 替换",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

@@ -159,6 +159,22 @@
   white-space: nowrap;
 }
 
+.cardHeading {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cardSummary {
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cardTrailing {
   display: inline-flex;
   flex: none;

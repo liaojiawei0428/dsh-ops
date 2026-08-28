@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-cordis-client-runner",
-  "description": "Browser half of dynamic dual-half plugin packages: event subscription, closure evaluation, guard facade, and loader entries",
+  "description": "动态双半插件包的浏览器半部：事件订阅、闭包求值、守卫门面与 loader 条目",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

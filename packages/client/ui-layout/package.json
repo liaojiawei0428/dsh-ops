@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-layout",
-  "description": "Shell plugin: three-column AppFrame with drag handles, ctx.layout viewing-state service (navigation + panels)",
+  "description": "外壳插件：带拖拽手柄的三栏 AppFrame 与 ctx.layout 视图状态服务（导航 + 面板）",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

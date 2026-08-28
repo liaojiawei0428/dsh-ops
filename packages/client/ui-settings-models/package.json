@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-settings-models",
-  "description": "Models settings and shared product-onboarding dialogs over existing settings and credential joins",
+  "description": "基于既有设置与凭据关联的模型设置和共享产品引导对话框",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"

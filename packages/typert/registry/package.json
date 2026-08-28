@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-typert-registry",
-  "description": "Runtime registry for generated package reflection and Zod schemas",
+  "description": "生成包反射与 Zod 模式的运行时注册表",
   "version": "0.1.1-rc.2",
   "publishConfig": {
     "access": "public"
