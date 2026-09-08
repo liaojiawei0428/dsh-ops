@@ -334,6 +334,16 @@ describe('released event and payload inventory', () => {
     expect(releasedV1SessionFormatCodec.decodeArtifact(v1Header, [event]).events).toEqual([event])
   })
 
+  it.each([[1], [4]])('refuses a released-v0 subagent/descriptor version %s at the migration source', (version) => {
+    const event = {
+      type: 'subagent/descriptor', seq: 0, time: 1,
+      data: { mode: 'continuable', version, provider: 'spawn', label: 'child', agentProvider: 'p', agentModel: 'm' },
+    }
+    expect(() => sessionFormatV0ToV1.migrate(releasedV0SessionFormatCodec.decodeArtifact(v0Header, [event])))
+      .toThrow(/uses unsupported descriptor version/)
+    expect(() => { assertReleasedEventPayload({ ...event, seq: 3 }, 1) }).not.toThrow()
+  })
+
   it('accepts every released nested union variant and optional member', () => {
     const sources: SessionFormatJsonValue[] = [
       { kind: 'user', rpcId: 'rpc-1', clientTimeZone: 'Asia/Shanghai' },
@@ -422,6 +432,18 @@ describe('released event and payload inventory', () => {
         cacheWriteTokens: 0, reasoningTokens: 1,
       } },
       { type: 'finish', reason: { kind: 'stop' }, replayState: { response: { id: 'response' }, blocks: [{}] } },
+      {
+        type: 'finish', reason: { kind: 'stop' }, replayState: {
+          kind: 'pi-ai', version: 1, api: 'openai-completions', provider: 'zai', model: 'glm-5.3',
+          responseId: 'resp-1', stopReason: 'stop',
+          blocks: [{ type: 'reasoning', thinkingSignature: 'reasoning_content' }, { type: 'text' }],
+        },
+      },
+      {
+        type: 'finish', reason: { kind: 'stop' }, replayState: {
+          kind: 'pi-ai', version: 1, api: 'openai-completions', provider: 'deepseek', model: 'm', stopReason: 'stop',
+        },
+      },
       { type: 'finish', reason: { kind: 'tool-calls' } },
       { type: 'finish', reason: { kind: 'max-tokens' } },
       { type: 'finish', reason: { kind: 'aborted', failure: { message: 'abort', code: 'ABORT' } } },
@@ -467,6 +489,7 @@ describe('released event and payload inventory', () => {
       ['session/title', { title: 'Provider title', messageSeqs: [0], source: { kind: 'provider', provider: 'p' } }],
       ['subagent/descriptor', { mode: 'one-shot', version: 3, provider: 'p', label: 'child' }],
       ['subagent/descriptor', { mode: 'one-shot', version: 3, provider: 'p' }],
+      ['subagent/descriptor', { mode: 'continuable', version: 2, provider: 'spawn', label: '补 tasks_test.py 17项', agentProvider: 'p', agentModel: 'm' }],
       ['subagent/descriptor', {
         mode: 'continuable', version: 3, provider: 'p', label: 'child', agentProvider: 'p', agentModel: 'm',
         agentReasoningEffort: 'high', persona: 'persona', toolFilter: { deny: ['write'] },
@@ -610,6 +633,27 @@ describe('released event and payload inventory', () => {
       }],
       ['assistant/chunk', {
         turn: 1, step: 0, chunk: { type: 'finish', reason: { kind: 'stop' }, replayState: { response: {}, blocks: {} } },
+      }],
+      ['assistant/chunk', {
+        turn: 1, step: 0, chunk: {
+          type: 'finish', reason: { kind: 'stop' }, replayState: {
+            kind: 'unknown', version: 1, api: 'a', provider: 'p', model: 'm', stopReason: 'stop',
+          },
+        },
+      }],
+      ['assistant/chunk', {
+        turn: 1, step: 0, chunk: {
+          type: 'finish', reason: { kind: 'stop' }, replayState: {
+            kind: 'pi-ai', version: 1, api: 'a', provider: 'p', model: 'm', stopReason: 'stop', extra: 'x',
+          },
+        },
+      }],
+      ['assistant/chunk', {
+        turn: 1, step: 0, chunk: {
+          type: 'finish', reason: { kind: 'stop' }, replayState: {
+            kind: 'pi-ai', version: 1, api: 'a', provider: 'p', model: 'm', stopReason: 'stop', blocks: 'no',
+          },
+        },
       }],
       ['compaction/summary', {
         compactionId: 'c', summary: [], shadowedRange: { start: 0, end: 0 }, shadowedSeqs: [0],

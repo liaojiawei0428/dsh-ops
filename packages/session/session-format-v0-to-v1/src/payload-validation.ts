@@ -725,7 +725,42 @@ function finishReasonValue(value: SessionFormatJsonValue | undefined, label: str
 }
 
 function replayEnvelopeValue(value: SessionFormatJsonValue | undefined, label: string): void {
-  const replay = exactRecord(value, label, ['response'], ['blocks'])
+  const replay = releasedV0Record(value, label)
+  if (replay['kind'] !== undefined) {
+    flatPreEnvelopeReplayValue(replay, label)
+    return
+  }
+  const exact = exactRecord(value, label, ['response'], ['blocks'])
+  if (exact['blocks'] !== undefined && !Array.isArray(exact['blocks'])) {
+    throw new SessionFormatError(`${label} blocks must be an array`)
+  }
+}
+
+/**
+ * Validate the flat pre-envelope replay state released v0 wrote before the
+ * response/blocks envelope split (pi-ai replay version 1). Runtime replay
+ * degrades this shape to provider-neutral history, so the identity edge
+ * preserves it losslessly instead of refusing the whole log.
+ * @param replay - flat replay record with the response members at top level.
+ * @param label - diagnostic subject.
+ */
+function flatPreEnvelopeReplayValue(replay: JsonRecord, label: string): void {
+  assertReleasedV0Keys(
+    replay,
+    ['kind', 'version', 'api', 'provider', 'model', 'stopReason'],
+    ['responseModel', 'responseId', 'blocks'],
+    label,
+  )
+  if (replay['kind'] !== 'pi-ai') {
+    throw new SessionFormatError(`${label} has unknown flat replay kind ${JSON.stringify(replay['kind'])}`)
+  }
+  countValue(replay['version'], `${label} version`)
+  nonEmptyString(replay['api'], `${label} api`)
+  nonEmptyString(replay['provider'], `${label} provider`)
+  nonEmptyString(replay['model'], `${label} model`)
+  nonEmptyString(replay['stopReason'], `${label} stopReason`)
+  if (replay['responseModel'] !== undefined) stringValue(replay['responseModel'], `${label} responseModel`)
+  if (replay['responseId'] !== undefined) stringValue(replay['responseId'], `${label} responseId`)
   if (replay['blocks'] !== undefined && !Array.isArray(replay['blocks'])) {
     throw new SessionFormatError(`${label} blocks must be an array`)
   }
@@ -919,7 +954,10 @@ function modelRouteValue(value: SessionFormatJsonValue | undefined, label: strin
 }
 
 function subagentDescriptorValue(data: JsonRecord, label: string): void {
-  literalValue(data['version'], [3], `${label} version`)
+  // Released v0 also wrote descriptor version 2 before the optional
+  // agentReasoningEffort member was added; version 2's member set is a subset
+  // of version 3's, so the identity edge admits both losslessly.
+  literalValue(data['version'], [2, 3], `${label} version`)
   nonEmptyString(data['provider'], `${label} provider`)
   if (data['mode'] === 'one-shot') {
     assertReleasedV0Keys(data, ['mode', 'version', 'provider'], ['label'], `${label} data`)
