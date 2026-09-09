@@ -575,7 +575,7 @@ function runPnpmInstall(profileDir) {
 }
 
 /** One reapply pass: validate → backup → rewrite → pnpm install. */
-async function reapply(manifestPath) {
+export async function reapply(manifestPath) {
   const actions = []
   const validation = validateManifest(manifestPath)
   if (!validation.ok) return { ok: false, actions, error: `清单校验未通过：\n${validation.errors.join('\n')}` }
