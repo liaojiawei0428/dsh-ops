@@ -35,13 +35,13 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
 
 /**
- * Where the built core validator lives: derived from this script's own
- * location (DSH-ops) — the official repo is the sibling <root>/Deepseek_DSH,
- * so any drive letter works. Override via DSH_TOOLS_LIB when needed.
+ * Where the built core validator lives: the personal runtime copy is
+ * <DSH-ops>/Deepseek_DSH（新架构 2026-09: 官方同级 checkout 只拉取构建, 运行库在副本）。
+ * Override via DSH_TOOLS_LIB when needed.
  */
 const OPS_DIR = dirname(fileURLToPath(import.meta.url))
 const TOOLS_LIB = process.env.DSH_TOOLS_LIB
-  ?? join(dirname(OPS_DIR), 'Deepseek_DSH/packages/core/tools/lib/index.js').replaceAll('\\', '/')
+  ?? join(OPS_DIR, 'Deepseek_DSH/packages/core/tools/lib/index.js').replaceAll('\\', '/')
 /** Profile directory whose linked plugins to validate; resolved per machine. */
 const PROFILE_DIR = process.argv[2]
   ?? (process.env.DSH_HOME !== undefined ? resolve(process.env.DSH_HOME, 'profiles/web') : resolve(homedir(), '.dsh/profiles/web'))

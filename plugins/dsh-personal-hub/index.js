@@ -359,8 +359,12 @@ function validateManifest(manifestPath) {
  */
 function parsePatchBlocks(text) {
   const lines = text.split(/\r?\n/)
+  // 文件头 = 第一个 `- id:` 之前的全部行（可能有多行说明注释）。
+  // 注意不能停在"第一个空行"——reapply 生成的干净文件第一块可能紧跟文件头
+  // 或直接是 `- id:`，此前"空行停表头"会把第一块吞进 header 导致解析丢块
+  // （2026-09-09 新机演练: deepseek-balance 块被吞）。
   let headEnd = 0
-  while (headEnd < lines.length && lines[headEnd].trim().length > 0) headEnd++
+  while (headEnd < lines.length && !/^- id:\s*\S+\s*$/.test(lines[headEnd])) headEnd++
   const header = lines.slice(0, headEnd)
   const blocks = []
   let current = null
@@ -492,7 +496,9 @@ function statusReport(manifestPath) {
     drift.push(`bundles = [${liveBundles.join(', ')}]，应为 [${expectedBundles.join(', ')}]`)
   }
 
-  const patchText = readFileSync(path.join(manifest.profileDir, 'cordis.patch.yml'), 'utf8')
+  const patchText = existsSync(path.join(manifest.profileDir, 'cordis.patch.yml'))
+    ? readFileSync(path.join(manifest.profileDir, 'cordis.patch.yml'), 'utf8')
+    : ''
   const { blocks } = parsePatchBlocks(patchText)
   const managed = managedIds(manifest)
   const byId = new Map(blocks.map(b => [b.id, b]))
@@ -593,7 +599,7 @@ export async function reapply(manifestPath) {
   actions.push('package.json 已按清单重写（dependencies + dsh.profile.bundles）')
 
   const patchPath = path.join(profileDir, 'cordis.patch.yml')
-  const patchText = readFileSync(patchPath, 'utf8')
+  const patchText = existsSync(patchPath) ? readFileSync(patchPath, 'utf8') : ''
   atomicWrite(patchPath, rebuildPatchYaml(patchText, manifest))
   actions.push('cordis.patch.yml 托管条目已按清单重生成（官方块原样保留）')
 

@@ -30,7 +30,7 @@ $ErrorActionPreference = 'Stop'
 
 $repo = $PSScriptRoot
 $copy = Join-Path $repo 'Deepseek_DSH'
-$home = $env:USERPROFILE
+$userProfile = $env:USERPROFILE
 
 Write-Host '==== 个人 DSH 部署引导 ===='
 Write-Host "个人仓库 : $repo"
@@ -70,7 +70,7 @@ finally { Pop-Location }
 if (-not $SkipProfile) {
   Write-Host '5/5 装配 web profile（reapply-cli 按清单重建）...'
   # 隔离演练: 尊重 DSH_HOME（默认 ~/.dsh）。演练机/生产机设置 DSH_HOME 可完全隔离
-  $dshHome = if ($env:DSH_HOME -and $env:DSH_HOME.Trim() -ne '') { $env:DSH_HOME } else { Join-Path $home '.dsh' }
+  $dshHome = if ($env:DSH_HOME -and $env:DSH_HOME.Trim() -ne '') { $env:DSH_HOME } else { Join-Path $userProfile '.dsh' }
   Write-Host "  DSH_HOME = $dshHome（个人 profile 装配到这里）"
   # 机器特定覆盖层（personal.local.json）——reapply 依赖它作为合并层, 缺失时生成
   $localCfg = Join-Path $repo 'personal-hub\personal.local.json'
@@ -87,6 +87,14 @@ if (-not $SkipProfile) {
     Write-Host "  已生成覆盖层 $localCfg（pwshPath=$pwshPath, 请核对）"
   } else {
     Write-Host "  覆盖层已存在: $localCfg"
+  }
+  # 确保 profile 目录有最小 package.json（reapply 的 validateManifest 要求它存在）
+  New-Item -ItemType Directory -Path (Join-Path $dshHome 'profiles\web') -Force | Out-Null
+  $profPkg = Join-Path $dshHome 'profiles\web\package.json'
+  if (-not (Test-Path $profPkg)) {
+    '{"name":"dsh-profile-web","private":true,"dependencies":{},"dsh":{"profile":{"bundles":[]}}}' |
+      Set-Content $profPkg -Encoding UTF8
+    Write-Host "  已初始化 profile 骨架: $profPkg"
   }
   node (Join-Path $repo 'reapply-cli.mjs')
   if ($LASTEXITCODE -ne 0) { throw 'reapply-cli 失败（profile 装配未完成）' }

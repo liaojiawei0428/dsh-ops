@@ -1,10 +1,11 @@
 # BUG 记录索引
 
-共 164 条（fixed 144 / workaround 13 / open 7）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
+共 165 条（fixed 145 / workaround 13 / open 7）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
 
 | 日期 | 记录 | 组件 | 严重度 | 状态 | 症状 |
 |---|---|---|---|---|---|
 | 2026-09-09 | [2026-09-09-dsh-update-dsh-ps1](2026-09-09-dsh-update-dsh-ps1.md) | update-dsh.ps1 | major | fixed | 每次更新官方 DSH 时 update-dsh.ps1 提示"仓库有未提交的修改, 中止升级"，即使推送插件显示全部同步也无法更新 |
+| 2026-09-09 | [2026-09-09-deploy-md-bootstrap-33-home-reapply-patc](2026-09-09-deploy-md-bootstrap-33-home-reapply-patc.md) | DSH-ops 部署脚本（bootstrap/validate-plugins/personal-hub） | major | fixed | 新电脑按 DEPLOY.md 部署：bootstrap 第 33 行 $home 赋值失败退出；reapply 报 patch 缺失/首块漂移；validate-plugins 找不到核心校验器 |
 | 2026-09-09 | [2026-09-09-checkout-rpc-host-payload-validation](2026-09-09-checkout-rpc-host-payload-validation.md) | DSH-ops 部署架构 + official-patches | major | fixed | 官方 checkout 源码带个人补丁（rpc-host/payload-validation），更新拉取受扰且官方目录非纯净，无法实现"官方一致 + 个人独立部署"分离 |
 | 2026-09-09 | [2026-09-09-0-1-5-7-subagent-descriptor-version-must](2026-09-09-0-1-5-7-subagent-descriptor-version-must.md) | 官方 session-format-v2-to-v3 迁移链（本地补丁） | critical | fixed | 官方 0.1.5 更新后 7 个历史子代理会话打开失败（subagent/descriptor version must be one of 3） |
 | 2026-09-08 | [2026-09-08-transport-failure-for-dsh-personal-hub-s](2026-09-08-transport-failure-for-dsh-personal-hub-s.md) | dsh-personal-hub + validate-plugins 闸门 | major | fixed | 「个人部署层」设置页点击按钮报 `transport failure for /dsh-personal-hub/status: HTTP 405`（RPC 通道未注册） |
