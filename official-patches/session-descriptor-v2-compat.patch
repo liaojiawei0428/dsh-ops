@@ -1,0 +1,20 @@
+diff --git a/packages/session/session-format-v0-to-v1/src/payload-validation.ts b/packages/session/session-format-v0-to-v1/src/payload-validation.ts
+index 5b19f7cc66..c94d6c9c03 100644
+--- a/packages/session/session-format-v0-to-v1/src/payload-validation.ts
++++ b/packages/session/session-format-v0-to-v1/src/payload-validation.ts
+@@ -953,7 +953,13 @@ function modelRouteValue(value: SessionFormatJsonValue | undefined, label: strin
+ }
+ 
+ function subagentDescriptorValue(data: JsonRecord, label: string): void {
+-  literalValue(data['version'], [3], `${label} version`)
++  // Released builds also wrote descriptor version 2 before the optional
++  // agentReasoningEffort member was added; version 2's member set is a subset
++  // of version 3's, so the identity edge admits both losslessly. The runtime
++  // reader ignores versions it does not know, so admitting v2 changes no
++  // runtime semantics (2026-09-05 released-shape compat fix, preserved across
++  // the v2→v3 migration chain where the same v0 vocabulary validator runs).
++  literalValue(data['version'], [2, 3], `${label} version`)
+   nonEmptyString(data['provider'], `${label} provider`)
+   if (data['mode'] === 'one-shot') {
+     assertReleasedV0Keys(data, ['mode', 'version', 'provider'], ['label'], `${label} data`)
+

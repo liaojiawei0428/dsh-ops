@@ -9,3 +9,7 @@ node_modules/
 
 # personal-hub 本机覆盖层：绝对路径等机器特定配置，每台机器自建，永不提交
 personal-hub/personal.local.json
+
+# 官方源码副本（个人运行时, 独立 node_modules + 补丁）——不入个人仓库
+# 新电脑部署: 运行 bootstrap-personal.ps1（clone 官方 → 应用补丁 → install → build）
+Deepseek_DSH/

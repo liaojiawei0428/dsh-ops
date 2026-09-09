@@ -1,4 +1,4 @@
-﻿param(
+param(
   [switch]$CheckOnly
 )
 $ErrorActionPreference = 'Stop'
@@ -20,13 +20,19 @@ if (-not (Test-Path (Join-Path $repo '.git'))) {
   exit 1
 }
 
-# 1. 本地工作区必须干净（.npmrc 等未跟踪文件不算）。
+# 1. 本地工作区检查（.npmrc 等未跟踪文件不算脏）。
+#    官方仓库是拉取目标, 本地补丁（如 rpc-host.ts 的上游回归修复）是常态;
+#    未提交/未推送的改动不应中止升级。这里只检测, 实际 stash 在 git pull 前
+#    执行（见第 3 段）, 这样 fetch/网络失败等提前退出路径不会留下待恢复的
+#    暂存内容。CheckOnly 模式永不 stash。
 $dirty = git -C $repo status --porcelain | Where-Object { $_ -notmatch '^\?\?' }
+$stashed = $false
 if ($dirty) {
-  Write-Both "警告: 仓库有未提交的修改, 中止升级:`n$dirty"
-  exit 1
+  Write-Both "检测到本地修改: $($dirty -join '; ')"
+  Write-Both '（更新时将自动暂存并恢复, 不再中止升级）'
+} else {
+  Write-Both '本地工作区干净'
 }
-Write-Both '本地工作区干净 OK'
 
 # 1.5 用户配置完整性校验（在动任何东西之前）。
 # 背景: .credentials.yaml 一旦损坏, 凭据插件按设计 fail-loud, 进程在监听端口前
@@ -151,9 +157,40 @@ if ($local -eq $remote) {
 } else {
   Write-Both "发现更新: 本地 $localShort -> 远端 $remoteShort"
   if ($CheckOnly) { exit 2 }
+  # 本地有未提交修改时, pull 前先 stash 暂存（含未跟踪文件）, 更新完成后恢复。
+  if ($dirty) {
+    $stashResult = git -C $repo stash push -u -m 'dsh-update-auto'
+    if ($LASTEXITCODE -ne 0) {
+      Write-Both "警告: 本地修改暂存失败 (git stash), 继续尝试更新"
+      $stashed = $false
+    } else {
+      $stashed = $true
+      Write-Both "已自动暂存本地修改 (stash: dsh-update-auto), 更新完成后将尝试恢复"
+    }
+  }
   git -C $repo pull --ff-only
-  if ($LASTEXITCODE -ne 0) { Write-Both 'git pull 失败 (可能本地有提交, 需要手动处理)'; exit 1 }
+  if ($LASTEXITCODE -ne 0) {
+    if ($stashed) { Write-Both 'git pull 失败。本地修改已暂存在 stash (dsh-update-auto), 请 git stash pop 恢复后再处理。' }
+    else { Write-Both 'git pull 失败 (可能本地有提交, 需要手动处理)' }
+    exit 1
+  }
   Write-Both 'git pull 完成 OK'
+}
+
+# 3.2 恢复更新前自动暂存的本地修改。冲突时保留 stash 并给出指引, 不静默丢失。
+if ($stashed) {
+  Write-Both '正在恢复更新前暂存的本地修改...'
+  $pop = git -C $repo stash pop
+  if ($LASTEXITCODE -ne 0) {
+    Write-Both '警告: 本地修改恢复冲突 (stash pop 失败)。'
+    Write-Both '  暂存内容保留在 stash (dsh-update-auto), 不会丢失。'
+    Write-Both '  处理: 手动解决冲突后 git stash drop; 或丢弃补丁 git checkout -- . 后 git stash drop'
+    Write-Both '  提示: 官方更新可能已包含同一处修复, 先 diff 对照再决定。'
+  } else {
+    Write-Both '本地修改已恢复 OK'
+    $dirtyAfter = git -C $repo status --porcelain | Where-Object { $_ -notmatch '^\?\?' }
+    if ($dirtyAfter) { Write-Both "恢复后工作区仍有修改: $($dirtyAfter -join '; ')" }
+  }
 }
 
 if ($CheckOnly) { exit 0 }
@@ -204,6 +241,20 @@ try {
   exit 1
 }
 Pop-Location
+
+# 5.5 官方源码 → 个人副本同步（副本 = 运行源, 带本地补丁; 官方目录保持纯净）。
+#   官方目录仅作拉取+构建源; 副本独立 node_modules + 补丁, 由 sync-official.ps1 维护。
+#   同步含补丁应用与副本重建, 失败则中止（旧服务按官方目录继续可运行）。
+Write-Both '同步官方构建到个人副本 (sync-official)...'
+& (Join-Path $ops 'sync-official.ps1') 2>&1 | ForEach-Object { Write-Both "  $_" }
+if ($LASTEXITCODE -ne 0) {
+  Write-Both '同步到个人副本失败, 中止 (旧服务仍可按官方目录运行, 但后续步骤需要副本)'
+  exit 1
+}
+Write-Both '个人副本同步完成 OK'
+
+# 运行源改为个人副本（版本确认 / 预检 / 重启均以副本为准）。
+$repo = Join-Path $ops 'Deepseek_DSH'
 
 # 6. 新版本号确认。
 $ver = node (Join-Path $repo 'apps\cli\lib\bin.js') --version

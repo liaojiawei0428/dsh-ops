@@ -1,0 +1,14 @@
+diff --git a/packages/client/connection/src/rpc-host.ts b/packages/client/connection/src/rpc-host.ts
+index d74734e132..7e7c2f4bd1 100644
+--- a/packages/client/connection/src/rpc-host.ts
++++ b/packages/client/connection/src/rpc-host.ts
+@@ -176,7 +176,7 @@ export class HostConnectionService extends Service implements HostConnectionHand
+       },
+     }
+     return owner.effect(
+-      () => owner.webServer.register(route),
++      () => owner.root.webServer.register(route),
+       `client-connection: ${channel} rpc channel`,
+     )
+   }
+

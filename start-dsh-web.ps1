@@ -1,13 +1,16 @@
-﻿param(
+param(
   # 彻底重启模式：先强制停止当前监听 3080 的服务（若有）并等待端口释放，
   # 再走完整启动流程。默认（不带此开关）保持幂等语义：已在运行则直接打开
   # 浏览器退出（update-dsh.ps1 等调用方依赖该语义）。
   [switch]$Restart
 )
 $ErrorActionPreference = 'Continue'
-# 路径约定：本脚本位于 <root>\DSH-ops，官方仓库为同级 <root>\Deepseek_DSH。
+# 路径约定：本脚本位于 <root>\DSH-ops；运行源 = 个人部署副本（DSH-ops\Deepseek_DSH，
+# 独立 node_modules + 本地补丁）；官方 checkout 为同级 <root>\Deepseek_DSH（纯净,
+# 仅由 update-dsh.ps1 拉取并同步到副本）。
 $ops = $PSScriptRoot
-$repo = Join-Path (Split-Path $ops -Parent) 'Deepseek_DSH'
+$official = Join-Path (Split-Path $ops -Parent) 'Deepseek_DSH'
+$repo = Join-Path $ops 'Deepseek_DSH'
 New-Item -ItemType Directory -Path $ops -Force | Out-Null
 $log = Join-Path $ops 'dsh-switch.log'
 $me = $PID
