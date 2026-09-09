@@ -532,7 +532,9 @@ function atomicWrite(filePath, content) {
 /** Backup the owned profile files; returns the backup directory. */
 function backupProfile(profileDir) {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-  const backupDir = path.join(homedir(), '.dsh', 'backups', `${stamp}-personal-hub`)
+  // 备份根跟随 profileDir 的 DSH_HOME（隔离演练/多机部署不污染主环境 ~/.dsh）
+  const dshRoot = dirname(dirname(profileDir))
+  const backupDir = path.join(dshRoot, 'backups', `${stamp}-personal-hub`)
   mkdirSync(backupDir, { recursive: true })
   for (const file of PROFILE_FILES) {
     const source = path.join(profileDir, file)
