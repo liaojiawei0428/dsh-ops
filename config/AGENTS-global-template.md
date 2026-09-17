@@ -19,7 +19,7 @@
 
 ## DSH 服务纪律（硬规则）
 
-- DSH 状态检查统一入口：`python <盘符>:\DSH\DSH-ops\health-check.py`（全绿退出 0；发现服务/看门狗异常时自动复活后复查）。
+- DSH 状态检查统一入口：`<盘符>:\DSH\DSH-ops\health-check.cmd` 或 `pwsh -NoProfile -File <盘符>:\DSH\DSH-ops\health-check.ps1`（内部自动定位真实 python，规避命令行裸 `python` 解析到 MS Store 桩；全绿退出 0；发现服务/看门狗异常时自动复活后复查）。
 - 服务重启只能走标准重启链（request_restart → start-dsh-web.ps1，经 WMI 独立进程）；禁止另起服务器替代本 GUI 服务。
 - 改动自研插件落盘前必须先过闸门 `<盘符>:\DSH\DSH-ops\validate-plugins.mjs`：任何插件（无论好坏）都不得妨碍 DSH 正常启动运行。
 - 修复任何 bug 后必须 `bug_report` 记录；调查任何异常前先 `bug_search` 查既有记录。

@@ -1,8 +1,10 @@
 """DSH-ops 一键体检 — "查状态"类任务的默认入口（D7 工具分工纪律）。
 
-用法:
-    python health-check.py           # 全量体检（含闸门 + 回归，约 10 秒）
-    python health-check.py --quick   # 快速体检（跳过闸门/回归）
+用法（统一入口为包装脚本, 自动定位真实 python, 规避命令行裸 python 解析到 MS Store 桩）:
+    .\\health-check.cmd              # 全量体检（含闸门 + 回归，约 10 秒；点击或命令行均可）
+    .\\health-check.cmd --quick      # 快速体检（跳过闸门/回归）
+    # 等价: pwsh -NoProfile -File .\\health-check.ps1 [--quick]
+    # 直接 `python health-check.py` 亦可, 但须用绝对路径 python 或 py 启动器
 
 检查项:
   1. 服务端口 3080 监听 + 服务进程 pid/名（socket + netstat/tasklist，纯 python）

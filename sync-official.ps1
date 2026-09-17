@@ -1,4 +1,4 @@
-<#
+﻿<#
   sync-official.ps1 — 官方源码 → 个人副本同步 + 补丁应用
 
   架构:
@@ -6,21 +6,30 @@
     E:\DSH\DSH-ops\Deepseek_DSH   个人部署副本（独立 node_modules + 本地补丁, 运行源）
 
   职责:
-    - 默认: 官方源码增量复制到副本 → 应用补丁 → 重建副本（补丁源码在副本 → 产物带补丁）
+    - 默认: 官方源码增量复制到副本 → 清除官方已删残留 → 应用补丁 → 重建副本（补丁源码在副本 → 产物带补丁）
     - -ApplyPatchesOnly: 只对副本应用官方补丁（bootstrap 新电脑用时）
-    - -SkipBuild: 同步 + 应用补丁, 不构建
+    - -SkipBuild: 同步 + 清理 + 应用补丁, 不构建
+    - -NoPrune: 跳过残留清理（排查用）
+
+  残留清理（official-patches/prune-copy.mjs）:
+    robocopy /E 只增不删, 官方删除或重命名的文件会永久残留在副本（例: 0.1.5-alpha.2
+    把 ui-sidebar-textpreview 重命名为 ui-sidebar-documentpreview, 旧包整包残留,
+    仍被 pnpm workspace glob 匹配并污染 pnpm-lock.yaml）。prune 以官方 git 为
+    唯一真相: 删除「不在 HEAD 跟踪清单 且 未被 .gitignore 忽略」的文件——构建产物
+    与依赖因被 .gitignore 覆盖而永不误删。
 
   补丁说明（official-patches/ 内嵌替换对）:
     官方 checkout 永远纯净（不手改）; 补丁以精确文本替换的形式保存在
-    official-patches/apply-patches.ps1, 对副本的源码进行替换。官方升级若改动了
+    official-patches/apply-patches.mjs, 对副本的源码进行替换。官方升级若改动了
     同一处代码, 替换会因找不到目标串而 fail-loud, 避免静默漏补。
 
   用法:
-    pwsh -File sync-official.ps1 [-ApplyPatchesOnly] [-SkipBuild]
+    pwsh -File sync-official.ps1 [-ApplyPatchesOnly] [-SkipBuild] [-NoPrune]
   #>
 param(
   [switch]$ApplyPatchesOnly,
-  [switch]$SkipBuild
+  [switch]$SkipBuild,
+  [switch]$NoPrune
 )
 $ErrorActionPreference = 'Stop'
 
@@ -40,6 +49,15 @@ if (-not $ApplyPatchesOnly) {
   $rc = $LASTEXITCODE
   if ($rc -ge 8) { throw "robocopy 失败 (exit $rc)" }
   Write-Host "源码同步完成 (robocopy exit $rc, 0/1 = 无变化/已复制)"
+
+  # 1b. 清除副本中官方已删除/重命名的残留（robocopy 只增不删, 必须回删）
+  if ($NoPrune) {
+    Write-Host '跳过残留清理 (-NoPrune)'
+  } else {
+    Write-Host '清理官方已删除的残留文件...'
+    & node (Join-Path $ops 'official-patches\prune-copy.mjs') $copy $official
+    if ($LASTEXITCODE -ne 0) { throw "残留清理失败 (exit $LASTEXITCODE)" }
+  }
 } elseif (Test-Path $ops) {
   Write-Host '模式: 仅应用补丁（跳过官方同步）'
 }

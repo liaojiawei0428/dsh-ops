@@ -49,21 +49,30 @@ function Test-ProxyListening([int]$port) {
   return [bool]$c
 }
 
-# 直连 GitHub 探测：TCP 连接 github.com:443，3 秒超时。
-# TUN/虚拟网卡模式的 VPN 流量已全部走虚拟网卡，此探测通过即代表
-# 无需系统代理也能访问 GitHub。
+# 直连 GitHub 探测：发一次真实 HTTPS HEAD 请求（显式禁用代理），5 秒超时。
+# 只探 TCP 握手会把「TCP 连得上、TLS/HTTP 被中间设备重置」误判为可达——
+# 2026-09-17 实测本机 socket 对 github.com:443 探测 0.1s "成功"，而真实
+# HTTPS 请求被 RST 或 21 秒超时；脚本据此误判"直连可用"并放弃代理，后续
+# git fetch 必失败且错误信息指向"VPN 节点失效"，误导排查。必须走完
+# TLS 握手 + HTTP 响应才算直连可用。
 # @returns $true 直连可达；$false 不可达。
 function Test-GitHubDirect {
-  $client = [System.Net.Sockets.TcpClient]::new()
   try {
-    $iar = $client.BeginConnect('github.com', 443, $null, $null)
-    if (-not $iar.AsyncWaitHandle.WaitOne(3000)) { return $false }
-    $client.EndConnect($iar)
-    return $true
+    Add-Type -AssemblyName System.Net.Http -ErrorAction SilentlyContinue
+    $handler = New-Object System.Net.Http.HttpClientHandler
+    $handler.UseProxy = $false        # 关键: 显式绕开系统代理, 测的才是"直连"
+    $handler.AllowAutoRedirect = $false
+    $client = New-Object System.Net.Http.HttpClient($handler)
+    $client.Timeout = [TimeSpan]::FromSeconds(5)
+    try {
+      $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Head, 'https://github.com/')
+      $response = $client.SendAsync($request).GetAwaiter().GetResult()
+      return ([int]$response.StatusCode -lt 500)
+    } finally {
+      $client.Dispose()
+    }
   } catch {
     return $false
-  } finally {
-    $client.Close()
   }
 }
 
@@ -78,8 +87,15 @@ function Set-ProxyEnvironment($proxy) {
       Write-Host '[代理诊断] 这是本地问题: VPN 软件可能未运行或未启动代理服务, 请先开启 VPN' -ForegroundColor Yellow
       return $false
     }
+    # 大小写同时设置: git/curl 认小写, Node 与部分工具只认大写。
     $env:http_proxy = $proxy.Url
     $env:https_proxy = $proxy.Url
+    $env:HTTP_PROXY = $proxy.Url
+    $env:HTTPS_PROXY = $proxy.Url
+    # 本地地址永不走代理: 否则同进程内对 127.0.0.1:3080 的请求会被代理转发
+    # (2026-08-28 health-check 经系统代理 502 循环事故的同款隐患)。
+    $env:NO_PROXY = 'localhost,127.0.0.1,::1'
+    $env:no_proxy = $env:NO_PROXY
     Write-Host "[代理诊断] 系统代理已就绪: $($proxy.Url)" -ForegroundColor Green
     return $true
   }

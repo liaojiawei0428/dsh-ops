@@ -173,7 +173,7 @@ R4  紧急逃生（插件一时修不好，DSH 必须立即可用）：
 
 **D6 提交纪律**：DSH-ops 的改动审阅后入库；备份目录含密钥，**永不入库**。
 
-**D7 工具分工纪律**：AI 默认用 `python` 工具——计算、数据处理、日志与文本读写、JSON、多步逻辑、演练脚本；PowerShell 仅限白名单场景——Windows 系统对象（服务/进程/端口/WMI/注册表）、`git`/`pnpm`/`node` 进程编排、执行 `.ps1` 脚本本身。判据：操作对象是**数据**用 python，是**系统对象或外部进程**用 pwsh。依据（2026-08-31 实测）：pwsh 有结构性风险（`-Command` 不传播原生命令退出码、OEM 编码坑、隐式格式化截列、三套引号转义），python 显式哲学 + 训练语料优势正确率更高；高频体检操作已沉淀为 `health-check.py`，"查状态"类任务默认 python 一发完成。
+**D7 工具分工纪律**：AI 默认用 `python` 工具——计算、数据处理、日志与文本读写、JSON、多步逻辑、演练脚本；PowerShell 仅限白名单场景——Windows 系统对象（服务/进程/端口/WMI/注册表）、`git`/`pnpm`/`node` 进程编排、执行 `.ps1` 脚本本身。判据：操作对象是**数据**用 python，是**系统对象或外部进程**用 pwsh。依据（2026-08-31 实测）：pwsh 有结构性风险（`-Command` 不传播原生命令退出码、OEM 编码坑、隐式格式化截列、三套引号转义），python 显式哲学 + 训练语料优势正确率更高；高频体检操作已沉淀为 `health-check.py`（统一入口包装器 `health-check.cmd`/`health-check.ps1`，内部自动定位真实 python，规避命令行裸 `python` 解析到 MS Store 桩），"查状态"类任务默认由该入口一发完成。
 
 ## 工具索引
 
@@ -186,7 +186,7 @@ R4  紧急逃生（插件一时修不好，DSH 必须立即可用）：
 | `update-dsh.ps1` | 主仓库更新：全链路守卫（D3） |
 | `start-dsh-web.ps1` / `restart-dsh-web.ps1` | 启动/重启：先过闸门再动手；三次失败自动隔离肇事插件并重试一轮（G3） |
 | `watchdog-dsh.ps1` | 运行期看门狗（G5）：30s×2 去抖 → err.log 定位 → 隔离 → WMI 拉起；带心跳文件与 finally 黑匣子（死亡现场判据） |
-| `health-check.py` | 一键体检（D7 默认入口）：服务/看门狗/日志/bundles/闸门/回归；看门狗不在岗自动 WMI 复活 |
+| `health-check.cmd`/`health-check.ps1`（→ `health-check.py`） | 一键体检（D7 默认入口，自动定位真实 python）：服务/看门狗/日志/bundles/闸门/回归；看门狗不在岗自动 WMI 复活 |
 
 **闸门自身故障的排查**：闸门从 `DSH_TOOLS_LIB`（默认主仓库构建产物 `packages/core/tools/lib/index.js`）导入真实校验器，导入失败时闸门整体报错、按 fail-closed 中止重启。主仓库重构导致该路径变动时，设置环境变量 `DSH_TOOLS_LIB` 指向新位置即可，无需改插件或放行。
 

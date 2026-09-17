@@ -15,7 +15,7 @@
 6. **用户数据文件**（`~/.dsh` 下）：改前备份到 `backups/`，整体原子重写，禁止行级拼接。
 7. **坏插件应急**：`node disable-plugin.mjs dsh-<role>` 一键摘除（文件与 link 保留），修复后加回 bundles。启动链自带兜底（G3）：3 次启动失败自动隔离肇事插件并重试一轮；服务运行期死亡由看门狗（G5，`watchdog-dsh.ps1`）60 秒内自动定位+隔离+拉起；详见 PLUGIN-STANDARD.md「闸门与启动保险（G1–G5）」。
 8. **主仓库更新**只走 `update-dsh.ps1`，不手工跳步。
-9. **工具分工**（D7）：默认用 `python` 工具——计算、数据处理、日志/文本读写、JSON、多步逻辑；pwsh 仅限系统对象（服务/进程/端口/WMI）、`git`/`pnpm`/`node`、执行 `.ps1`。查状态先跑 `python health-check.py`（一键体检：服务/看门狗/日志/闸门/回归），不要再裸写 pwsh。本准则已固化到用户全局 `~/.dsh/AGENTS.md`（DSH 指令加载器对所有项目的会话注入）；两处以 PLUGIN-STANDARD.md D7 为唯一权威版本，改动须三处同步。
+9. **工具分工**（D7）：默认用 `python` 工具——计算、数据处理、日志/文本读写、JSON、多步逻辑；pwsh 仅限系统对象（服务/进程/端口/WMI）、`git`/`pnpm`/`node`、执行 `.ps1`。查状态先跑 `E:\DSH\DSH-ops\health-check.cmd`（或 `pwsh -NoProfile -File E:\DSH\DSH-ops\health-check.ps1`，内部自动定位真实 python，规避命令行裸 `python` 解析到 MS Store 桩；一键体检：服务/看门狗/日志/闸门/回归），不要再裸写 pwsh、也不要再手敲 `python health-check.py`。本准则已固化到用户全局 `~/.dsh/AGENTS.md`（DSH 指令加载器对所有项目的会话注入）；两处以 PLUGIN-STANDARD.md D7 为唯一权威版本，改动须三处同步。
 
 改动完成后运行 `node test-standard.mjs` 确认工具链保障未回归。
 
@@ -34,7 +34,7 @@
 - `PLUGIN-STANDARD.md` — 行为准则（唯一权威版本）
 - `new-plugin.mjs` / `validate-plugins.mjs` / `disable-plugin.mjs` / `test-standard.mjs` — 准则工具链
 - `update-dsh.ps1` / `start-dsh-web.ps1` / `watchdog-dsh.ps1` / `check-update.ps1` — 启动、看护与更新链
-- `health-check.py` — 一键体检（准则 9 的默认入口；看门狗不在岗自动复活）
+- `health-check.cmd` / `health-check.ps1`（包装器，自动定位真实 python）→ `health-check.py` — 一键体检（准则 9 的默认入口；看门狗不在岗自动复活）
 - `启动DSH.bat` / `更新DSH.bat` — 用户入口
 
 ## 注意

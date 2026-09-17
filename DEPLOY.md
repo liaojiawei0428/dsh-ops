@@ -114,7 +114,7 @@ pwsh -File .\start-dsh-web.ps1
 
 | # | 检查 | 命令/期望 |
 |---|---|---|
-| 1 | 健康检查 | `python .\health-check.py` → 全绿 |
+| 1 | 健康检查 | `.\health-check.cmd`（或 `pwsh -NoProfile -File .\health-check.ps1`）→ 全绿 |
 | 2 | 插件闸门 | `node .\validate-plugins.mjs` → **10 个 PASS** |
 | 3 | 自研插件 | 输出含 `dsh-server-ssh / dsh-github-push / dsh-personal-hub / dsh-deepseek-balance / dsh-opencode-session-id` 等 |
 | 4 | 版本 | `node .\Deepseek_DSH\apps\cli\lib\bin.js --version` → 与开发机一致（如 0.1.5-alpha.1） |

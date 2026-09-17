@@ -48,8 +48,12 @@ const FETCH_WRAPPED = Symbol.for('dsh.opencodeSessionId.fetchWrapped')
 /** Default header set matching the opencode gateway's contract. */
 const DEFAULT_HEADERS = ['x-opencode-session']
 
-/** Default providers whose streams carry session ids (pi-ai route names). */
-const DEFAULT_PROVIDERS = ['opencode', 'opencode-go']
+/**
+ * Default provider-name allowlist for session-header injection. Empty means no
+ * name restriction: the opencode.ai host match alone decides, which is what
+ * lets a custom-named route (for example `opencode-live`) receive the header.
+ */
+const DEFAULT_PROVIDERS = []
 
 /** Default URL host suffixes that receive session headers. */
 const DEFAULT_HOSTS = ['opencode.ai']

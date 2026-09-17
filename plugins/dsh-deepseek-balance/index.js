@@ -16,6 +16,7 @@
 
 import { execFile, spawn } from 'node:child_process'
 import { access, constants, readFile } from 'node:fs/promises'
+import { connect } from 'node:net'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
@@ -44,38 +45,87 @@ const TTL_MS = 60000
 let cache = undefined
 let cacheAt = 0
 
-/** System proxy read from the registry, cached per process. */
+/**
+ * System proxy resolution: registry values + a live-port check, cached for a
+ * SHORT window. A per-process cache (the previous design) froze whatever the
+ * answer was at the first check: starting DSH before the VPN client cached
+ * "no proxy" for the whole server lifetime, so turning the VPN on afterwards
+ * still failed until DSH was restarted. The TTL lets the capsule follow the
+ * proxy switch without a restart.
+ */
+const PROXY_TTL_MS = 30000
 let proxyCache = undefined
+let proxyCacheAt = 0
 
 /**
- * Read the Windows system proxy (ProxyEnable/ProxyServer) once per process.
- * @returns `{ url }` when enabled, `{ url: undefined }` when disabled.
+ * TCP-probe the proxy endpoint. Registry values can outlive the VPN client
+ * that wrote them; pointing git at a dead port yields a misleading
+ * "Failed to connect to 127.0.0.1" instead of the real network verdict, and
+ * blocks the direct-connection fallback that TUN-mode VPNs rely on.
+ * @param url - normalized proxy URL (`http://host:port`).
+ * @returns true when something is listening on that host:port.
+ */
+function probeProxyPort(url) {
+  return new Promise((resolve) => {
+    let settled = false
+    let socket
+    const finish = (ok) => {
+      if (settled) return
+      settled = true
+      if (socket !== undefined) socket.destroy()
+      resolve(ok)
+    }
+    try {
+      const parsed = new URL(url)
+      const port = parsed.port !== '' ? Number(parsed.port) : 80
+      socket = connect({ host: parsed.hostname, port })
+      socket.setTimeout(500)
+      socket.once('connect', () => finish(true))
+      socket.once('timeout', () => finish(false))
+      socket.once('error', () => finish(false))
+    } catch {
+      finish(false)
+    }
+  })
+}
+
+/**
+ * Detect the machine's usable proxy: registry values plus a live-port check.
+ * @returns `{ url, reason }` — `url` is defined only when the proxy is usable;
+ *   otherwise the caller falls back to a direct connection.
+ */
+async function detectSystemProxy() {
+  const key = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings'
+  try {
+    const { stdout } = await execFileAsync('reg', ['query', key, '/v', 'ProxyEnable'], { timeout: 5000 })
+    if (!/0x1\b/.test(stdout)) return { url: undefined, reason: '系统代理未启用' }
+    let raw
+    try {
+      const { stdout: serverOut } = await execFileAsync('reg', ['query', key, '/v', 'ProxyServer'], { timeout: 5000 })
+      const match = serverOut.match(/ProxyServer\s+REG_SZ\s+(\S+)/)
+      raw = match ? match[1] : undefined
+    } catch { raw = undefined }
+    if (raw === undefined) return { url: undefined, reason: '系统代理未配置服务器地址' }
+    const url = raw.startsWith('http') ? raw : `http://${raw}`
+    if (!(await probeProxyPort(url))) {
+      return { url: undefined, reason: `代理端口未监听 (${url})，已降级直连` }
+    }
+    return { url }
+  } catch {
+    return { url: undefined, reason: '无法读取系统代理设置' }
+  }
+}
+
+/**
+ * Resolve the system proxy through the short TTL cache.
+ * @returns `{ url, reason }`.
  */
 async function readSystemProxy() {
-  if (proxyCache !== undefined) return proxyCache
-  try {
-    const { stdout } = await execFileAsync('reg', [
-      'query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings',
-      '/v', 'ProxyEnable',
-    ], { timeout: 5000 })
-    const enabled = /0x1\b/.test(stdout)
-    let url
-    if (enabled) {
-      try {
-        const { stdout: serverOut } = await execFileAsync('reg', [
-          'query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings',
-          '/v', 'ProxyServer',
-        ], { timeout: 5000 })
-        const match = serverOut.match(/ProxyServer\s+REG_SZ\s+(\S+)/)
-        url = match ? match[1] : undefined
-      } catch { url = undefined }
-    }
-    proxyCache = { url }
-    return proxyCache
-  } catch {
-    proxyCache = { url: undefined }
-    return proxyCache
-  }
+  const now = Date.now()
+  if (proxyCache !== undefined && now - proxyCacheAt < PROXY_TTL_MS) return proxyCache
+  proxyCache = await detectSystemProxy()
+  proxyCacheAt = now
+  return proxyCache
 }
 
 /**
@@ -88,9 +138,11 @@ async function git(repoDir, args) {
   const proxy = await readSystemProxy()
   const env = { ...process.env }
   if (proxy.url !== undefined) {
-    const normalized = proxy.url.startsWith('http') ? proxy.url : `http://${proxy.url}`
-    env.HTTP_PROXY = normalized
-    env.HTTPS_PROXY = normalized
+    // Both spellings: git/curl read the lowercase pair, some tools only the upper.
+    env.HTTP_PROXY = proxy.url
+    env.HTTPS_PROXY = proxy.url
+    env.http_proxy = proxy.url
+    env.https_proxy = proxy.url
   }
   const { stdout } = await execFileAsync('git', ['-C', repoDir, ...args], {
     env,
@@ -127,7 +179,14 @@ async function checkRepoUpdate(repoDir) {
     record.latest = (await git(repoDir, ['rev-parse', 'origin/master'])).slice(0, 12)
     record.hasUpdate = record.current.length > 0 && record.current !== record.latest
   } catch (e) {
-    record.checkError = 'update check failed: ' + String(e && e.message ? e.message : e)
+    // Name the channel actually used: "direct connection because no proxy is
+    // listening" is the most common cause and points straight at the VPN
+    // client being off (2026-09-17 版本胶囊"检查异常"事故的排查结论)。
+    const channel = await readSystemProxy()
+    const via = channel.url !== undefined
+      ? '经代理 ' + channel.url
+      : '直连（' + channel.reason + '）'
+    record.checkError = 'update check failed ' + via + ': ' + String(e && e.message ? e.message : e)
   }
   return record
 }

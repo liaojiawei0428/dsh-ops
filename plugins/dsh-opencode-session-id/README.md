@@ -1,6 +1,6 @@
 # dsh-opencode-session-id
 
-给 DSH 的出站推理 HTTP 请求注入每会话会话标识头（默认 `x-opencode-session`），目标为 opencode.ai 网关（pi-ai provider `opencode` / `opencode-go`）。opencode Go 网关自 2026-09-05 起强制该头，缺失时返回 HTTP 400 `MissingSessionID`（deepseek-harness discussion #5495），导致所有 Go 套餐模型不可用。本插件在 wire 层复刻 opencode 客户端自己的行为，恢复可用性。
+给 DSH 的出站推理 HTTP 请求注入每会话会话标识头（默认 `x-opencode-session`），目标为 opencode.ai 网关（按 host 匹配，**不限 provider 名**：pi-ai 目录路由 `opencode` / `opencode-go` 与自定义命名的路由如 `opencode-live` 同样生效）。opencode Go 网关自 2026-09-05 起强制该头，缺失时返回 HTTP 400 `MissingSessionID`（deepseek-harness discussion #5495），导致所有 Go 套餐模型不可用。本插件在 wire 层复刻 opencode 客户端自己的行为，恢复可用性。
 
 遵循 [PLUGIN-STANDARD.md](../PLUGIN-STANDARD.md) 行为准则开发。
 
@@ -18,7 +18,7 @@
 
 | Key | 默认 | 说明 |
 |---|---|---|
-| `providers` | `['opencode', 'opencode-go']` | 参与会话标记的 pi-ai 路由名；空数组 = 全部 |
+| `providers` | `[]`（不限制） | 参与会话标记的 pi-ai 路由名白名单；空数组 = 全部 provider，仅按 host 匹配。留空是有意为之：任何指向 opencode.ai 的自定义路由（如 `opencode-live`）都必须拿到该头 |
 | `hosts` | `['opencode.ai']` | URL host 后缀（含子域名）命中即注入 |
 | `baseURLs` | `[]` | 额外的精确 URL 前缀匹配（自定义网关） |
 | `headers` | `['x-opencode-session']` | 注入的请求头名列表 |
