@@ -44,7 +44,10 @@
     {
       "name": "dsh-opencode-session-id",
       "patch": {
-        "comment": "opencode-session-id: inject per-conversation x-opencode-session header into opencode.ai gateway requests (required since 2026-09-05, HTTP 400 MissingSessionID otherwise)."
+        "comment": "opencode-session-id: inject per-conversation x-opencode-session header into opencode.ai gateway requests (required since 2026-09-05, HTTP 400 MissingSessionID otherwise).\nproviders: [] disables the provider-name allowlist, so ANY route pointing at opencode.ai gets the header (custom-named routes such as opencode-live would otherwise 400 MissingSessionID).",
+        "config": {
+          "providers": []
+        }
       }
     }
   ]

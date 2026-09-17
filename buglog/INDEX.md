@@ -1,12 +1,16 @@
 # BUG 记录索引
 
-共 187 条（fixed 161 / workaround 17 / open 9）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
+共 191 条（fixed 164 / workaround 17 / open 10）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
 
 | 日期 | 记录 | 组件 | 严重度 | 状态 | 症状 |
 |---|---|---|---|---|---|
 | 2026-09-17 | [2026-09-17-vpn-update-check-failed](2026-09-17-vpn-update-check-failed.md) | dsh-deepseek-balance / git 全局代理配置 | major | open | 未开启 VPN 代理软件时，浏览器右上角版本胶囊的"检查更新"报异常（悬停显示"检查异常: update check failed …"），且明明有新版也不提示；开启代理软件后立刻恢复，并能检测到官方新提交。 |
 | 2026-09-17 | [2026-09-17-vpn-dsh-ops-git-tcp](2026-09-17-vpn-dsh-ops-git-tcp.md) | dsh-deepseek-balance / DSH-ops 代理层 (lib-proxy.ps1) | major | fixed | 未开 VPN 代理软件时"检查更新"报异常；代理开关变化后不重启 DSH 不生效；ops 脚本的"直连降级"被 git 全局硬绑定架空，且 TCP 探测假阳性会把不可达的直连误判为可达。 |
+| 2026-09-17 | [2026-09-17-personal-hub-status-patch-opencode-sessi](2026-09-17-personal-hub-status-patch-opencode-sessi.md) | dsh-personal-hub | major | open | personal_hub_status 报「patch 条目 opencode-session-id config.providers 不在清单中」；只读模拟证明 personal_hub_reapply 重建 cordis.patch.yml 后会丢失 providers: [] 覆盖（opencode 自定义路由将重新 400 MissingSessionID），同时首块注释重复输出。 |
+| 2026-09-17 | [2026-09-17-personal-hub-status-patch-opencode-sessi-2](2026-09-17-personal-hub-status-patch-opencode-sessi-2.md) | dsh-personal-hub | major | fixed | personal_hub_status 报漂移「patch 条目 opencode-session-id config.providers 不在清单中」；personal_hub_reapply 会静默删除该 providers: [] 覆盖（opencode 自定义路由将重新 400 MissingSessionID），且每次重建都在首块前多输出一份注释（不收敛）。 |
+| 2026-09-17 | [2026-09-17-personal-hub-reapply-dirname-is-not-defi](2026-09-17-personal-hub-reapply-dirname-is-not-defi.md) | dsh-personal-hub | major | fixed | personal_hub_reapply 立即失败并返回「重新适配失败：dirname is not defined」，「已执行步骤」为空（连 profile 备份都没做）。 |
 | 2026-09-17 | [2026-09-17-git-push-remote-invalid-username-or-toke](2026-09-17-git-push-remote-invalid-username-or-toke.md) | 部署工具链 / banmu-admin/deploy/relay_push_github.py | minor | open | 服务器中转 git push 认证失败（remote: Invalid username or token / fatal: Authentication failed），GitHub API 校验 token 返回 401 Bad credentials，提交无法推送到远端。 |
+| 2026-09-17 | [2026-09-17-bug](2026-09-17-bug.md) | banmu-server/game_actions.js | major | fixed | 玩家无法把装饰摆在场景带内的空白处（返回「目标网格已被占用」），且落在该类位置的历史数据会在拉档时被系统自动搬迁，玩家自己布置的坐标未被保留。 |
 | 2026-09-17 | [2026-09-17-24-585](2026-09-17-24-585.md) | banmu-admin/web/src/views/logic/index.vue | major | fixed | 世界网格下方的场景列表显示一大堆重复项：24 处场景膨胀为 585 条（按各自占用格数重复）。 |
 | 2026-09-16 | [2026-09-16-ssh-bash-error-not-connected-paramiko](2026-09-16-ssh-bash-error-not-connected-paramiko.md) | dsh-server-ssh（ssh_bash 工具） | minor | workaround | ssh_bash 调用立即返回 `Error: Not connected`（连续两次），而同一服务器的 paramiko 直连正常。 |
 | 2026-09-16 | [2026-09-16-sql-mysql-5-7-error-1064-near-if-not-exi](2026-09-16-sql-mysql-5-7-error-1064-near-if-not-exi.md) | banmu-admin/deploy/world_scene_layout.sql | major | fixed | 场景布局迁移 SQL 在 MySQL 5.7 上执行失败（ERROR 1064 near 'IF NOT EXISTS map_seq'），scenes 表 map_* 列未创建，后续查询报 Unknown column 'map_w'，世界网格不显示任何场景。 |

@@ -351,25 +351,32 @@ function validateManifest(manifestPath) {
 /**
  * Split cordis.patch.yml into units with strict comment ownership so repeated
  * reapplies converge instead of accumulating orphan comments:
- *  - header  = everything before the first blank line (the file's top block);
+ *  - header  = every line before the first block (the file's top block);
  *  - a block = the immediately-preceding run of `#` comment lines (its
- *    preamble, no blank line between) plus everything from its `- id:` line;
+ *    preamble, no blank line between) plus everything from its `- id:` line —
+ *    the run directly above the FIRST `- id:` belongs to that first block, not
+ *    to the header (otherwise the header keeps it and the managed block emits
+ *    it again: one duplicated comment line per rebuild);
  *  - comments separated from any `- id:` by a blank line are orphans and are
  *    dropped on rebuild (self-healing; comments are not machine contract).
  */
 function parsePatchBlocks(text) {
   const lines = text.split(/\r?\n/)
-  // 文件头 = 第一个 `- id:` 之前的全部行（可能有多行说明注释）。
+  // 文件头 = 第一个 `- id:` 之前的全部行，但紧贴该 `- id:` 的连续注释行回退给
+  // 第一块作 preamble（否则重建时这段注释既留在 header、又被托管块输出一次，
+  // 每次 reapply 多一行重复注释——2026-09-17 只读重建实测）。
   // 注意不能停在"第一个空行"——reapply 生成的干净文件第一块可能紧跟文件头
   // 或直接是 `- id:`，此前"空行停表头"会把第一块吞进 header 导致解析丢块
   // （2026-09-09 新机演练: deepseek-balance 块被吞）。
-  let headEnd = 0
-  while (headEnd < lines.length && !/^- id:\s*\S+\s*$/.test(lines[headEnd])) headEnd++
+  let firstId = 0
+  while (firstId < lines.length && !/^- id:\s*\S+\s*$/.test(lines[firstId])) firstId++
+  let headEnd = firstId
+  while (headEnd > 0 && /^#/.test(lines[headEnd - 1])) headEnd--
   const header = lines.slice(0, headEnd)
   const blocks = []
   let current = null
-  let pending = []
-  for (const line of lines.slice(headEnd)) {
+  let pending = lines.slice(headEnd, firstId)
+  for (const line of lines.slice(firstId)) {
     const m = /^- id:\s*(\S+)\s*$/.exec(line)
     if (m !== null) {
       if (current !== null) blocks.push(current)
@@ -415,15 +422,38 @@ function unquoteYaml(value) {
   return trimmed
 }
 
-/** Render one manifest patch entry as a managed YAML block (single-quoted scalars). */
+/**
+ * Serialize one config value into its YAML form: strings keep the historical
+ * single-quoted scalar shape, everything else is written as JSON — valid YAML
+ * flow syntax for arrays, objects, numbers and booleans. Before this, only
+ * scalars could be declared in the manifest at all: `providers: []` rendered as
+ * the STRING '[]', which breaks an array-typed plugin config, so such an
+ * override could only be hand-written into cordis.patch.yml — invisible to the
+ * manifest and silently deleted by every reapply (2026-09-17).
+ */
+function renderConfigValue(value) {
+  if (typeof value === 'string') return `'${value.replace(/'/g, "''")}'`
+  return JSON.stringify(value)
+}
+
+/**
+ * The comparable text form of a manifest config value — the parse-side mirror
+ * of renderConfigValue, so a live block read back by blockIdentity matches the
+ * manifest even for non-scalars (String([]) is '' and would always drift).
+ */
+function configValueText(value) {
+  return typeof value === 'string' ? value : JSON.stringify(value)
+}
+
+/** Render one manifest patch entry as a managed YAML block (a multi-line comment becomes one `#` line per line). */
 function renderManagedBlock(entry, comment) {
-  const lines = [`# ${comment}`, `- id: ${entry.id}`]
+  const lines = [...String(comment).split(/\r?\n/).map(line => `# ${line}`), `- id: ${entry.id}`]
   const nameText = typeof entry.name === 'string' ? entry.name : String(entry.name)
   lines.push(`  name: '${nameText.replace(/'/g, "''")}'`)
   if (entry.config !== undefined && entry.config !== null && Object.keys(entry.config).length > 0) {
     lines.push('  config:')
     for (const [key, value] of Object.entries(entry.config)) {
-      lines.push(`    ${key}: '${String(value).replace(/'/g, "''")}'`)
+      lines.push(`    ${key}: ${renderConfigValue(value)}`)
     }
   }
   return lines
@@ -509,7 +539,8 @@ function statusReport(manifestPath) {
     if (actual.name !== entry.name) drift.push(`patch 条目 ${id} name = ${actual.name}，应为 ${entry.name}`)
     const want = entry.patch.config ?? {}
     for (const [key, value] of Object.entries(want)) {
-      if (actual.config[key] !== String(value)) drift.push(`patch 条目 ${id} config.${key} = ${actual.config[key]}，应为 ${value}`)
+      const expected = configValueText(value)
+      if (actual.config[key] !== expected) drift.push(`patch 条目 ${id} config.${key} = ${actual.config[key]}，应为 ${expected}`)
     }
     for (const key of Object.keys(actual.config)) {
       if (want[key] === undefined) drift.push(`patch 条目 ${id} config.${key} 不在清单中`)
@@ -533,7 +564,7 @@ function atomicWrite(filePath, content) {
 function backupProfile(profileDir) {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   // 备份根跟随 profileDir 的 DSH_HOME（隔离演练/多机部署不污染主环境 ~/.dsh）
-  const dshRoot = dirname(dirname(profileDir))
+  const dshRoot = path.dirname(path.dirname(profileDir))
   const backupDir = path.join(dshRoot, 'backups', `${stamp}-personal-hub`)
   mkdirSync(backupDir, { recursive: true })
   for (const file of PROFILE_FILES) {
