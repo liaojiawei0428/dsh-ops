@@ -56,6 +56,7 @@
 **P7 编码与输出**
 - 子进程执行强制 UTF-8（如 `PYTHONUTF8=1`、PowerShell `[Console]::OutputEncoding` 前导），杜绝 OEM 代码页乱码。
 - PowerShell 脚本与含中文的文件：UTF-8 带 BOM。
+- **`.cmd`/`.bat` 必须纯 ASCII**（注释也不例外）——cmd.exe 同样按 OEM 代码页解码，中文注释会变成乱码并**被当作命令执行**（2026-09-19 实测：`'��链，不执行任何服务动作。' is not recognized...`）。所以用户入口脚本要写说明就写英文，或把说明放到调用旁边的 `.ps1`/文档里。两类约束已由 `test-standard.mjs` 的 T5 自动检查（见 D5）。
 
 **P8 资源清理**
 - 每次调用创建的临时文件/目录在 `finally` 中尽力清理；清理失败不报错。
@@ -164,13 +165,13 @@ R4  紧急逃生（插件一时修不好，DSH 必须立即可用）：
 
 **D1 profile 改动**：改完立即 `--dump-config` 验证组合树 + 跑闸门；两绿才算改完。
 
-**D2 启动链改动**：改任何 `.ps1`/`.bat` 后——语法检查通过 + UTF-8 BOM 在位 + `powershell.exe` 引用为零（恒用 pwsh 7）。三个检查一个都不能省。
+**D2 启动链改动**：改任何 `.ps1`/`.bat` 后——语法检查通过 + UTF-8 BOM 在位 + `powershell.exe` 引用为零（恒用 pwsh 7）+ `.cmd`/`.bat` 无非 ASCII 字节。四个检查一个都不能省；`node test-standard.mjs` 的 T5 会一次性查后两项。
 
 **D3 主仓库更新**：一律走 `update-dsh.ps1`（内置：工作区干净检查 → 凭据结构校验 → 配置备份 → ff-only 拉取 → frozen-lockfile 安装 → CLI 冒烟 → 构建 → dump-config 组合预检 → 插件闸门 → 重启 → HTTP 健康检查）。不得手工跳步。
 
 **D4 用户数据文件**（credentials/settings/profile package.json）：改前备份到 `~/.dsh/backups/<时间戳>/`；写入必须**整体原子替换**（读 → 改 → 序列化全文 → 写），**禁止行级拼接**（`Set-Content -NoNewline` 数组拼接是既成事故）。
 
-**D5 编码纪律**：`.ps1` 恒 UTF-8 带 BOM；编辑工具会剥 BOM，改完必须补回。
+**D5 编码纪律**：`.ps1` 恒 UTF-8 带 BOM；编辑工具会剥 BOM，改完必须补回。`.cmd`/`.bat` 恒纯 ASCII（cmd.exe 按 OEM 代码页解码，中文注释会被当命令执行）。两条都由 `test-standard.mjs` **T5** 自动把关：它递归扫仓库（跳过 `node_modules`/`.git`/`Deepseek_DSH`/`__pycache__`），`.ps1` 前三字节必须是 `EF BB BF`、`.cmd`/`.bat` 必须全字节 ≤ 127，违反即列出文件名与偏移并 exit 1。T5 上线当天就抓到两处无 BOM 的残留副本。
 
 **D6 提交纪律**：DSH-ops 的改动审阅后入库；备份目录含密钥，**永不入库**。
 
@@ -183,7 +184,7 @@ R4  紧急逃生（插件一时修不好，DSH 必须立即可用）：
 | `new-plugin.mjs` | 脚手架：产出合规骨架，从源头保证结构正确 |
 | `validate-plugins.mjs` | 预检闸门：八项检查（G1/G2）——注册路径真实执行（含 inject 守卫）、schema 方言、client 语法、exports 在盘、dsh.bundle 声明与补丁在盘、安装状态、演练保留区 |
 | `disable-plugin.mjs` | 紧急摘除（R4）+ 自动隔离（G3）共用：把坏插件移出加载列表，文件与 link 保留 |
-| `test-standard.mjs` | 验收测试：T1–T4 证明脚手架合规、闸门拦截力、逃生通道可用 |
+| `test-standard.mjs` | 验收测试：T1–T4 证明脚手架合规、闸门拦截力、逃生通道可用；T5 把关编码卫生（`.ps1` BOM / `.cmd`+`.bat` 纯 ASCII） |
 | `update-dsh.ps1` | 主仓库更新：全链路守卫（D3） |
 | `start-dsh-web.ps1` / `restart-dsh-web.ps1` | 启动/重启：先过闸门再动手；三次失败自动隔离肇事插件并重试一轮（G3） |
 | `watchdog-dsh.ps1` | 运行期看门狗（G5）：30s×2 去抖 → err.log 定位 → 隔离 → WMI 拉起；带心跳文件与 finally 黑匣子（死亡现场判据） |
@@ -202,6 +203,8 @@ R4  紧急逃生（插件一时修不好，DSH 必须立即可用）：
 [ ] schema: required 全在父对象数组；属性内无 required；oneOf 旁无 required
 [ ] 若改了工具返回形状：output.schema.properties/required 与 render 已同步、catch 分支同改（否则真实调用失败，闸门查不出）
 [ ] .ps1 若有改动：语法 OK + BOM 在位 + 无 powershell.exe
+[ ] .cmd/.bat 若有改动：纯 ASCII（无 >127 字节）
+[ ] node test-standard.mjs 五项全绿（T5 复查编码卫生）
 [ ] 用户数据文件：已备份；整体原子写入
 [ ] 若做过演练：插件目录已删、link 已摘、闸门恢复全绿（G4）
 ```

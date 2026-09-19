@@ -11,14 +11,16 @@
  *   T3  a browser-half client entry with a syntax error is rejected
  *   T4  disable-plugin removes a plugin from the bundle list without touching
  *       files or links, and reports the recovery step
+ *   T5  deploy-chain file hygiene: every .ps1 keeps its UTF-8 BOM and every
+ *       .cmd/.bat stays pure ASCII (both have actually regressed before)
  *
  * Exit 0 = the standard's guarantees hold; exit 1 = at least one regressed.
  */
 
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, readFile, rm, readdir } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const OPS = dirname(fileURLToPath(import.meta.url))
@@ -108,6 +110,46 @@ try {
     (disable.out + '\n' + JSON.stringify(after.dsh?.profile?.bundles)).trim())
 } finally {
   await rm(root, { recursive: true, force: true }).catch(() => {})
+}
+
+// T5 — deploy-chain file hygiene. Two encoding traps have actually broken this
+// toolchain, both silent until a user hits them:
+//   * .ps1 files carry Chinese comments and are UTF-8 **with BOM** (Windows
+//     PowerShell 5.1 decodes BOM-less files as the OEM codepage). Editors and
+//     scripted rewrites strip the BOM, so the invariant needs a gate.
+//   * .cmd/.bat are decoded by cmd.exe as the OEM codepage too, so any non-ASCII
+//     byte turns comments into garbage that cmd tries to execute as commands.
+{
+  const SKIP = new Set(['node_modules', '.git', 'Deepseek_DSH', '__pycache__'])
+  const files = []
+  const walk = async dir => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      if (SKIP.has(entry.name)) continue
+      const full = join(dir, entry.name)
+      if (entry.isDirectory()) await walk(full)
+      else files.push(full)
+    }
+  }
+  await walk(OPS)
+
+  const problems = []
+  let ps1 = 0
+  let cmd = 0
+  for (const file of files) {
+    const bytes = await readFile(file)
+    if (file.endsWith('.ps1')) {
+      ps1++
+      if (!(bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf)) {
+        problems.push(`${relative(OPS, file)}: missing UTF-8 BOM`)
+      }
+    } else if (/\.(cmd|bat)$/i.test(file)) {
+      cmd++
+      const offset = bytes.findIndex(byte => byte > 127)
+      if (offset >= 0) problems.push(`${relative(OPS, file)}: non-ASCII byte at offset ${offset}`)
+    }
+  }
+  check('T5', `deploy-chain hygiene (${ps1} .ps1 keep BOM, ${cmd} .cmd/.bat pure ASCII)`,
+    problems.length === 0, problems.join('; '))
 }
 
 const failed = results.filter(result => !result.ok)

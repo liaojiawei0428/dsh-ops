@@ -137,3 +137,29 @@ llm-pi-ai:
       apiKeyEnv: OPENCODE_API_KEY
 ui-conversation:
   busyEnter: steer
+
+# =============================================================================
+# 本文件是「能让服务起来」的最小骨架，**不是**开发机的完整 settings.yaml。
+# 开发机 ~/.dsh/settings.yaml 比这里多三个顶层命名空间，它们都是机器/个人特定的，
+# 故意不放进模板（照模板配出来的不是同一套 DSH）。要完全一致请整体复制旧机文件：
+#
+#   shell:                      # pwsh 工具的执行超时（官方默认即 60000，写出来只是显式化）
+#     timeoutMs: 60000
+#
+#   subagent-model-selection:   # 子代理 / 团队队友的授权模型清单（受此清单约束）
+#     enabled: true
+#     allowedModels:
+#       - provider: <provider-a>
+#         model: <model-a>
+#       - provider: <provider-b>
+#         model: <model-b>
+#
+#   llm-deepseek:               # 该 provider 的模型目录覆盖（含本机实验性条目）
+#     models:
+#       - id: <model-id>
+#         name: <display-name>
+#         contextWindow: <int>
+#         inputModalities: [text]
+#
+# 各命名空间的字段含义见官方对应插件包的 README；DEPLOY.md 第 3 步有部署口径说明。
+# =============================================================================

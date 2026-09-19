@@ -1,0 +1,13 @@
+# 官方源码版本锚点（声明值）
+#
+# 用途：bootstrap-personal.ps1 / sync-official.ps1 / update-dsh.ps1 在**自动克隆**
+# 官方仓库时读这里的第一个非注释行，作为 git clone --branch 的锚点，使新机首装
+# 拿到与开发机相同的官方源码。补丁是精确文本替换，源码不同则补丁可能失配。
+#
+# 优先级：环境变量 DSH_OFFICIAL_REF > 本文件 > 远端默认分支（不追加 --branch）。
+# 只接受 tag 或分支名，**不能写裸 commit SHA**（git clone --branch 不接受）。
+#
+# 维护：升级官方后若落到新的发版 tag，把下行改成新 tag；health-check 会比对
+# 本声明与平级官方 checkout 的实际 tag，不一致时给出提示（不判失败）。
+# 平级官方 checkout：..\Deepseek_DSH（master 分支，官方发版在这条分支上打 tag）。
+dsh-v0.1.6-alpha.2

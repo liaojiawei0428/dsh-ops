@@ -167,6 +167,175 @@ const patches = [
       + "    : {}\n"
       + "}\n",
   },
+  {
+    file: "experimental/agent-team/src/types.ts",
+    why: "队友可选模型(1/3): types.ts 声明客户端安全的 TeammateAgentOptions（不得引入 Host 面 AgentOptions）",
+    // 关键教训: types.ts 经本包的 ./client 出口被 client half 传递性引入。若在此
+    // import Host 面的 @deepseek-ai/dsh-agent, 会把它的
+    //   declare module '@deepseek-ai/cordis' { interface Context { sessions: SessionStore } }
+    // Context 合并带进每个 client 编译单元, 使 ctx.sessions 解析为 Host 类而非 client
+    // 面的 ISessions, client-ui-agent-team/src/client/mount.ts 随即报三处 TS2339
+    // (binding/refreshSubagents/retainInfo), 并阻断全量 pnpm run build。
+    // 故此处只声明结构等价的本地类型。见 buglog agent-team-host-type-leak-client。
+    old: "import type { SessionId } from '@deepseek-ai/dsh-session/types'\n",
+    new: "import type { SessionId } from '@deepseek-ai/dsh-session/types'\n"
+      + "\n"
+      + "/**\n"
+      + " * Child LLM route for one teammate.\n"
+      + " *\n"
+      + " * Declared here instead of importing the Host's `AgentOptions` from\n"
+      + " * `@deepseek-ai/dsh-agent`: this module is re-exported through the package's\n"
+      + " * `./client` entry, whose contract is client-safe vocabulary. A Host-face\n"
+      + " * import there drags that package's `declare module '@deepseek-ai/cordis'`\n"
+      + " * Context merge into every client compilation unit, where `ctx.sessions` then\n"
+      + " * resolves to the Host `SessionStore` class rather than the client's own\n"
+      + " * sessions service. The fields are structurally identical to `AgentOptions`,\n"
+      + " * so a caller may pass one directly.\n"
+      + " */\n"
+      + "export interface TeammateAgentOptions {\n"
+      + "  /** Provider route for the teammate's model. */\n"
+      + "  readonly provider?: string\n"
+      + "  /** Model id interpreted by the provider adapter. */\n"
+      + "  readonly model?: string\n"
+      + "}\n",
+  },
+  {
+    file: "experimental/agent-team/src/types.ts",
+    why: "队友可选模型(2/3): SpawnTeammateRequest 增加 agentOptions 字段",
+    // 上游契约只有 provider(且语义是 subagent provider: spawn/fork), 没有任何
+    // LLM 路由字段, 因此队友必然继承 Lead 的模型。SubagentStartRequest 本来就
+    // 接受 agentOptions(subagent/src/index.ts 的 cap 检查), 只是没有被透传。
+    old: "export interface SpawnTeammateRequest {\n"
+      + "  readonly name: string\n"
+      + "  readonly description: string\n"
+      + "  readonly prompt: ContentBlock[]\n"
+      + "  readonly context: 'fresh' | 'fork'\n"
+      + "  readonly provider: string\n"
+      + "  readonly signal: AbortSignal\n"
+      + "}\n",
+    new: "export interface SpawnTeammateRequest {\n"
+      + "  readonly name: string\n"
+      + "  readonly description: string\n"
+      + "  readonly prompt: ContentBlock[]\n"
+      + "  readonly context: 'fresh' | 'fork'\n"
+      + "  readonly provider: string\n"
+      + "  /** Child LLM route for this teammate; omitted means the child inherits the Lead's route. */\n"
+      + "  readonly agentOptions?: TeammateAgentOptions\n"
+      + "  readonly signal: AbortSignal\n"
+      + "}\n",
+  },
+  {
+    file: "experimental/agent-team/src/roster.ts",
+    why: "队友可选模型(3/3): roster 把 agentOptions 透传给 startContinuable",
+    old: "        request: {\n"
+      + "          prompt: request.prompt,\n"
+      + "          parent: root,\n"
+      + "        },\n",
+    new: "        request: {\n"
+      + "          prompt: request.prompt,\n"
+      + "          parent: root,\n"
+      + "          ...request.agentOptions === undefined ? {} : { agentOptions: request.agentOptions },\n"
+      + "        },\n",
+  },
+  {
+    file: "experimental/tool-agent-team/src/index.ts",
+    why: "队友可选模型: 工具层引入 AgentOptions 类型",
+    old: "import type { Agent } from '@deepseek-ai/dsh-agent'\n",
+    new: "import type { Agent, AgentOptions } from '@deepseek-ai/dsh-agent'\n",
+  },
+  {
+    file: "experimental/tool-agent-team/src/index.ts",
+    why: "队友可选模型: spawn_teammate 暴露 provider/model 并加与 subagent 一致的授权校验",
+    // 上游 spawn_teammate 只接受 name/description/prompt/context, 队友永远继承
+    // Lead 的模型, 团队模式无法按任务分派强弱模型。这里补上 provider/model 两个
+    // 参数, 并在调用点按部署设置 subagent-model-selection 授权(与 tool-subagent
+    // 的 assertAllowedModelSelection 同源语义: 显式选择必须命中 allowedModels,
+    // 未开启选择则拒绝)。settings 是可选服务, 用 ctx.get 读取, 缺失时不校验。
+    old: "        context: {\n"
+      + "          type: 'string',\n"
+      + "          enum: ['fresh', 'fork'],\n"
+      + "          description: 'fresh starts without Lead history; fork inherits completed Lead turns. Defaults to fresh.',\n"
+      + "        },\n"
+      + "      },\n"
+      + "      output: jsonOutput(SPAWN_VALUE_SCHEMA),\n"
+      + "      async execute(args, exec) {\n"
+      + "        const agent = callingAgent(exec.agent, 'spawn_teammate')\n"
+      + "        const context = args.context ?? 'fresh'\n"
+      + "        return await ctx.agentTeams.spawnTeammate(agent, {\n",
+    new: "        context: {\n"
+      + "          type: 'string',\n"
+      + "          enum: ['fresh', 'fork'],\n"
+      + "          description: 'fresh starts without Lead history; fork inherits completed Lead turns. Defaults to fresh.',\n"
+      + "        },\n"
+      + "        provider: {\n"
+      + "          type: 'string',\n"
+      + "          description: 'LLM provider route for the teammate. Supply together with model; omit both to inherit the Lead route.',\n"
+      + "        },\n"
+      + "        model: {\n"
+      + "          type: 'string',\n"
+      + "          description: 'Model id interpreted by provider. Supply together with provider; omit both to inherit the Lead route.',\n"
+      + "        },\n"
+      + "      },\n"
+      + "      output: jsonOutput(SPAWN_VALUE_SCHEMA),\n"
+      + "      async execute(args, exec) {\n"
+      + "        const agent = callingAgent(exec.agent, 'spawn_teammate')\n"
+      + "        const context = args.context ?? 'fresh'\n"
+      + "        const agentOptions = teammateAgentOptions(ctx, args)\n"
+      + "        return await ctx.agentTeams.spawnTeammate(agent, {\n",
+  },
+  {
+    file: "experimental/tool-agent-team/src/index.ts",
+    why: "队友可选模型: 追加 teammateAgentOptions() 组装与授权校验",
+    old: "/** Recover the exact caller guaranteed by Agent-scoped tool discovery. */\n",
+    new: "/**\n"
+      + " * Resolve the LLM route one `spawn_teammate` call asked for, enforcing the\n"
+      + " * deployment's `subagent-model-selection` authorization the way the\n"
+      + " * `subagent` tool does: an explicit route must appear in `allowedModels`,\n"
+      + " * and an unset `enabled` refuses explicit selection altogether. A teammate\n"
+      + " * carries no route of its own upstream, so without this the Lead's route is\n"
+      + " * silently inherited and team mode cannot place work on a cheaper model.\n"
+      + " * @param ctx - plugin context owning the optional `settings` service.\n"
+      + " * @param args - model-facing route fields from the tool call.\n"
+      + " * @returns the child options, or undefined when the call selected no route.\n"
+      + " */\n"
+      + "function teammateAgentOptions(\n"
+      + "  ctx: Context,\n"
+      + "  args: { readonly provider?: string; readonly model?: string },\n"
+      + "): AgentOptions | undefined {\n"
+      + "  if (args.provider === undefined && args.model === undefined) return undefined\n"
+      + "  if ((args.provider === undefined) !== (args.model === undefined)) {\n"
+      + "    throw new Error('teammate LLM `provider` and `model` must be supplied together')\n"
+      + "  }\n"
+      + "  const settings = ctx.get('settings')\n"
+      + "  const raw = settings?.get('subagent-model-selection') as\n"
+      + "    | { readonly enabled?: boolean; readonly allowedModels?: readonly { readonly provider: string; readonly model: string }[] }\n"
+      + "    | undefined\n"
+      + "  if (raw?.enabled !== true) {\n"
+      + "    throw new Error('teammate model selection is disabled by the deployment settings')\n"
+      + "  }\n"
+      + "  if (!(raw.allowedModels ?? []).some(route => route.provider === args.provider && route.model === args.model)) {\n"
+      + "    throw new Error(`teammate LLM route \"${String(args.provider)}/${String(args.model)}\" is not allowed by the deployment settings`)\n"
+      + "  }\n"
+      + "  return { provider: args.provider, model: args.model } as AgentOptions\n"
+      + "}\n"
+      + "\n"
+      + "/** Recover the exact caller guaranteed by Agent-scoped tool discovery. */\n",
+  },
+  {
+    file: "experimental/tool-agent-team/src/index.ts",
+    why: "队友可选模型: 把算出的 agentOptions 真正传进 spawnTeammate 调用",
+    // 与上一条同属一处改动；单独列出是因为漏了它 tsc 会报 TS6133
+    // 'agentOptions is declared but its value is never read'，即模型参数被算了却没生效。
+    old: "          context,\n"
+      + "          provider: context === 'fork' ? config.forkProvider : config.freshProvider,\n"
+      + "          signal: exec.signal,\n"
+      + "        })\n",
+    new: "          context,\n"
+      + "          provider: context === 'fork' ? config.forkProvider : config.freshProvider,\n"
+      + "          ...agentOptions === undefined ? {} : { agentOptions },\n"
+      + "          signal: exec.signal,\n"
+      + "        })\n",
+  },
 ]
 
 const failures = []

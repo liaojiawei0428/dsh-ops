@@ -44,12 +44,20 @@ if (-not $ApplyPatchesOnly) {
   if (-not (Test-Path (Join-Path $official '.git'))) {
     # 新机首次同步时平级官方 checkout 可能不存在（bootstrap 只 clone 个人仓库与
     # 其内部副本）：自动克隆，与 update-dsh.ps1 的兜底保持一致（2026-09-19 审核）。
-    Write-Host "平级官方 checkout 缺失: $official —— 自动克隆（--depth 1）..."
-    git clone --depth 1 https://github.com/deepseek-ai/deepseek-harness.git $official
+    # 官方版本锚点（2026-09-19 部署审核 B2）：解析顺序 = 环境变量 DSH_OFFICIAL_REF
+    # → official-patches\official-ref.txt（入库声明值）→ 远端默认分支 HEAD。
+    # 见 lib-official-ref.ps1。--branch 不接受裸 commit SHA。
+    . (Join-Path $ops 'lib-official-ref.ps1')
+    $refArgs = @(Get-OfficialRefArgs -OpsRoot $ops)
+    Write-Host "平级官方 checkout 缺失: $official —— 自动克隆（--depth 1$([string]::Join('', $refArgs))）..."
+    git clone --depth 1 @refArgs https://github.com/deepseek-ai/deepseek-harness.git $official
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $official '.git'))) {
       throw "官方仓库缺失且自动克隆失败: $official（先确认网络/代理, 或手工 git clone --depth 1 https://github.com/deepseek-ai/deepseek-harness.git <该路径>）"
     }
     Write-Host "已克隆官方 checkout: $official"
+    # 钉锚点克隆会落在游离 HEAD 且 refspec 只取 tag；修正后升级链才能正常 fetch。
+    $fix = Initialize-PinnedClone -Path $official
+    if ($fix) { Write-Host "  $fix" }
   }
   Write-Host "同步官方源码 → 个人副本`n  官方: $official`n  副本: $copy"
   $excludeDirs = @('.git', 'node_modules', '.artifacts', '.dsh-build', '__pycache__', '.tmp-inspect')

@@ -32,6 +32,16 @@ $repo = $PSScriptRoot
 $copy = Join-Path $repo 'Deepseek_DSH'
 $userProfile = $env:USERPROFILE
 
+# 官方源码版本锚点（2026-09-19 部署审核 B2）：解析顺序 = 环境变量 DSH_OFFICIAL_REF
+# → official-patches\official-ref.txt（入库声明值）→ 远端默认分支。见 lib-official-ref.ps1。
+# 注意：git clone --branch 只接受 tag 或分支名，不接受裸 commit SHA——要钉某个提交
+# 请用 tag（官方发版即打 tag，如 dsh-v0.1.6-alpha.2）。浅克隆默认不取 tag 对象，
+# 指定 --branch <tag> 时 git 会按 ref 拉取，因此 pin tag 在 --depth 1 下可用。
+. (Join-Path $repo 'lib-official-ref.ps1')
+$refArgs = @(Get-OfficialRefArgs -OpsRoot $repo)
+$refInfo = Get-OfficialRef -OpsRoot $repo
+if ($refInfo.Value) { Write-Host "官方版本锚点 : $($refInfo.Value)（来源: $($refInfo.Source)）" }
+
 Write-Host '==== 个人 DSH 部署引导 ===='
 Write-Host "个人仓库 : $repo"
 Write-Host "官方副本 : $copy"
@@ -39,8 +49,10 @@ Write-Host "官方副本 : $copy"
 # ---------- 1. 官方源码（clone 到个人仓库内, 不入个人 git） ----------
 if (-not (Test-Path (Join-Path $copy '.git'))) {
   Write-Host '1/5 克隆官方仓库...'
-  git clone --depth 1 $OfficialUrl $copy
+  git clone --depth 1 @refArgs $OfficialUrl $copy
   if ($LASTEXITCODE -ne 0) { throw '官方仓库克隆失败（VPN/代理需先就绪）' }
+  $fix = Initialize-PinnedClone -Path $copy
+  if ($fix) { Write-Host "     $fix" }
 } else {
   Write-Host '1/5 官方副本已存在, 跳过 clone'
 }
@@ -53,10 +65,13 @@ $officialRoot = Join-Path (Split-Path $repo -Parent) 'Deepseek_DSH'
 if (-not (Test-Path (Join-Path $officialRoot '.git'))) {
   Write-Host '1b/5 克隆平级官方 checkout（升级链拉取源）...'
   Write-Host "     $officialRoot"
-  git clone --depth 1 $OfficialUrl $officialRoot
+  git clone --depth 1 @refArgs $OfficialUrl $officialRoot
   if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $officialRoot '.git'))) {
     throw "平级官方 checkout 克隆失败（网络/代理需就绪）: $officialRoot"
   }
+  # 升级链（update-dsh.ps1）要能解析 origin/master，见 Initialize-PinnedClone 的注释。
+  $fix = Initialize-PinnedClone -Path $officialRoot
+  if ($fix) { Write-Host "     $fix" }
 } else {
   Write-Host "1b/5 平级官方 checkout 已存在, 跳过 clone ($officialRoot)"
 }

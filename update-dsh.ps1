@@ -46,14 +46,24 @@ Write-Both '==== DSH 升级检查 ===='
 # 并不存在（bootstrap 只 clone 个人仓库与其内部副本 <root>\DSH-ops\Deepseek_DSH），
 # 缺则自动克隆，避免「升级链在新机 100% 失败」（2026-09-19 部署审核 BLOCKER）。
 if (-not (Test-Path (Join-Path $repo '.git'))) {
-  Write-Both "未找到平级官方 checkout: $repo —— 自动克隆（--depth 1）..."
-  git clone --depth 1 https://github.com/deepseek-ai/deepseek-harness.git $repo
+  # 官方版本锚点（2026-09-19 部署审核 B2）：解析顺序 = 环境变量 DSH_OFFICIAL_REF
+  # → official-patches\official-ref.txt（入库声明值）→ 远端默认分支。
+  # 只在**首次克隆**时生效——升级链后续走 git pull origin 默认分支，语义是"取新版"，
+  # 因此 pin 锚点不会阻止升级，只决定新机第一次拿到哪个版本。--branch 不接受裸 SHA。
+  . (Join-Path $ops 'lib-official-ref.ps1')
+  $refArgs = @(Get-OfficialRefArgs -OpsRoot $ops)
+  Write-Both "未找到平级官方 checkout: $repo —— 自动克隆（--depth 1$([string]::Join('', $refArgs))）..."
+  git clone --depth 1 @refArgs https://github.com/deepseek-ai/deepseek-harness.git $repo
   if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $repo '.git'))) {
     Write-Both "错误: 官方 checkout 自动克隆失败（网络/代理需就绪）: $repo"
     Write-Both "处理: 手工执行 git clone --depth 1 https://github.com/deepseek-ai/deepseek-harness.git `"$repo`" 后重试"
     exit 1
   }
   Write-Both "已克隆官方 checkout: $repo"
+  # 钉锚点克隆会落在游离 HEAD 且 refspec 只取 tag；修正后下面的 fetch 才能创建
+  # origin/master（见 lib-official-ref.ps1 的 Initialize-PinnedClone）。
+  $fix = Initialize-PinnedClone -Path $repo
+  if ($fix) { Write-Both "  $fix" }
 }
 
 # 1. 本地工作区检查（.npmrc 等未跟踪文件不算脏）。
@@ -182,7 +192,23 @@ if ($LASTEXITCODE -ne 0) {
   exit 1
 }
 $local = git -C $repo rev-parse HEAD
-$remote = git -C $repo rev-parse origin/master
+# --verify --quiet：解析失败时不往 stdout 吐 "origin/master" 这种伪值，只看退出码。
+$remote = git -C $repo rev-parse --verify --quiet origin/master
+if ($LASTEXITCODE -ne 0) {
+  # 兼容「按 tag 锚点克隆过」的旧 checkout：refspec 只取 tag，origin/master 不存在。
+  # 就地修正 refspec 并重新 fetch 一次（幂等；普通克隆本来就是标准 refspec）。
+  Write-Both '警告: 无法解析 origin/master —— 修正 origin refspec 后重试 fetch...'
+  . (Join-Path $ops 'lib-official-ref.ps1')
+  $fix = Initialize-PinnedClone -Path $repo
+  if ($fix) { Write-Both "  $fix" }
+  git -C $repo fetch origin 2>$null
+  $remote = git -C $repo rev-parse --verify --quiet origin/master
+  if ($LASTEXITCODE -ne 0) {
+    Write-Both '错误: fetch 后仍无法解析 origin/master, 中止 (旧服务不受影响)'
+    Write-Both "处理: 手工检查 $repo 的 git 配置 (git remote -v / git config --get-all remote.origin.fetch)"
+    exit 1
+  }
+}
 $localShort = $local.Substring(0, 12)
 $remoteShort = $remote.Substring(0, 12)
 
@@ -204,13 +230,26 @@ if ($local -eq $remote) {
       Write-Both "已自动暂存本地修改 (stash: dsh-update-auto), 更新完成后将尝试恢复"
     }
   }
-  git -C $repo pull --ff-only
+  # 版本锚点（DSH_OFFICIAL_REF / official-ref.txt）指向 tag 时，git clone --branch <tag>
+  # 会 checkout 到 tag，即**游离 HEAD**。游离 HEAD 上 `git pull --ff-only` 必然失败：
+  # 浅克隆的边界让 git 无法证明祖先关系，它会认为分支已分叉
+  # （"Not possible to fast-forward"），升级链在此死锁。
+  # 语义上「升级」= 工作树换成远端分支尖端，所以游离 HEAD 走检出，不必合并：
+  # `git checkout --detach origin/master` 会把工作树（含上游已删除的文件）整体切到新提交，
+  # 实测可连续升级，且不需要下载 287 MB 全量历史（仓库保持 shallow）。
+  $onBranch = git -C $repo symbolic-ref -q HEAD
+  if ($onBranch) {
+    git -C $repo pull --ff-only
+  } else {
+    Write-Both "当前是游离 HEAD（版本锚点克隆的 tag）→ 改用 checkout --detach origin/master"
+    git -C $repo checkout --detach origin/master
+  }
   if ($LASTEXITCODE -ne 0) {
-    if ($stashed) { Write-Both 'git pull 失败。本地修改已暂存在 stash (dsh-update-auto), 请 git stash pop 恢复后再处理。' }
-    else { Write-Both 'git pull 失败 (可能本地有提交, 需要手动处理)' }
+    if ($stashed) { Write-Both 'git 更新失败。本地修改已暂存在 stash (dsh-update-auto), 请 git stash pop 恢复后再处理。' }
+    else { Write-Both 'git 更新失败 (可能本地有提交, 需要手动处理)' }
     exit 1
   }
-  Write-Both 'git pull 完成 OK'
+  Write-Both 'git 更新完成 OK'
 }
 
 # 3.2 恢复更新前自动暂存的本地修改。冲突时保留 stash 并给出指引, 不静默丢失。

@@ -55,7 +55,11 @@
 
 > ⚠️ **演练/隔离部署必读**：设置环境变量 `DSH_HOME=<隔离目录>`（如 `F:\QiTa\ceshi\.dsh-home`），
 > 让 profile 装配到隔离目录而不是 `~/.dsh`。新机正式部署**不设** DSH_HOME（默认 `~/.dsh`）。
-> 注意：`update-dsh.ps1` 固定操作 `%USERPROFILE%\.dsh`（不读 DSH_HOME），**演练时不要跑它**。
+> 部署链与体检链**都读 `DSH_HOME`**（2026-09-19 起统一：`bootstrap-personal.ps1`、`update-dsh.ps1`、
+> `watchdog-dsh.ps1`、`health-check.py`、`reapply-cli.mjs` 经由 `dsh-personal-hub`、`validate-plugins.mjs`、
+> `disable-plugin.mjs`、`check-plugin-copy.mjs`），所以隔离演练**不必回避任何脚本**；
+> `start-dsh-web.ps1` 自己不拼用户目录，`DSH_HOME` 由它启动的子进程直接继承。
+> 唯一约束仍是「3080 端口只有一个」（见第 4 步端口冲突说明）。
 
 ---
 
@@ -86,8 +90,10 @@ pwsh -File .\bootstrap-personal.ps1
 
 1. **克隆官方源码** → `.\Deepseek_DSH\`（`git clone --depth 1`；需要网络可达 GitHub）
 1b. **克隆平级官方 checkout** → `..\Deepseek_DSH\`（升级链的拉取源，见「架构速览」）
+   > 两处克隆都按**入库的版本锚点**（`official-patches\official-ref.txt`）取官方源码，
+   > **新机无需任何设置**即与开发机一致；要临时换版本见「[版本锚定](#版本锚定dsh_official_ref)」。
 2. **pnpm install** → 副本依赖（首次约 3-4 分钟）
-3. **应用官方补丁** → `official-patches\apply-patches.mjs`（当前 **17 条精确文本替换 + 7 个文件恢复**；
+3. **应用官方补丁** → `official-patches\apply-patches.mjs`（当前 **24 条精确文本替换 + 7 个文件恢复**；
    目标文本唯一性校验，异常即 fail-loud）
 4. **pnpm run build** → 副本构建（产物带补丁；首次数分钟）
 5. **profile 装配** → `reapply-cli.mjs` 按个人层清单重建 `%DSH_HOME%\profiles\web`：
@@ -125,7 +131,7 @@ bootstrap 已重建 `profiles\web\`。还需要**用户数据**（含密钥，�
 
 | # | 文件/目录 | 内容 | 新机怎么来 |
 |---|---|---|---|
-| 1 | `settings.yaml` | 界面/模型/权限等设置 | **推荐直接从旧机复制**（不含密钥）；仓库 `config\settings.yaml` 只是最小骨架，**不含**开发机的模型 provider、subagent 策略、超时等配置，照它配出来的不是同一套 DSH |
+| 1 | `settings.yaml` | 界面/模型/权限等设置 | **推荐直接从旧机复制**（不含密钥）；仓库 `config\settings.yaml` 只是最小骨架（139 行 / 7 个顶层段），**缺**开发机的 `shell`（pwsh 超时）、`subagent-model-selection`（子代理授权模型清单）、`llm-deepseek`（模型目录覆盖）三个命名空间，也不含开发机的模型 provider 通道、超时等配置——照它配出来的**不是**同一套 DSH |
 | 2 | `.credentials.yaml` | API Key 等密钥 | 从旧机复制，或按格式重填；**永不提交仓库** |
 | 3 | `AGENTS.md` | 全局指令底座（本机 AI 协作规则，对所有会话生效） | 从旧机复制 `~/.dsh/AGENTS.md`；或复制仓库 `config\AGENTS-global-template.md` 后按本机路径改写 |
 | 4 | 插件自有凭据 | `github-push\credentials.json`（GitHub PAT）、`server-ssh\`（如启用 SSH） | 从旧机复制，或在新机重新登录/填写 |
@@ -165,12 +171,69 @@ pwsh -File .\start-dsh-web.ps1
 |---|---|
 | 升级官方 + 同步副本 | 双击 `更新DSH.bat`（update-dsh.ps1：拉官方 → 构建 → sync 副本 → 补丁 → 副本构建 → 预检 → 重启） |
 | 仅同步官方到副本 | `pwsh -File .\sync-official.ps1` |
-| 重新应用补丁 | `node .\official-patches\apply-patches.mjs .\Deepseek_DSH\packages` **⚠️ 只应对纯净官方副本重跑**：其中 6 个 append 型补丁**不幂等**，在已打过补丁的副本上重跑会重复插入（脚本仍报「全部补丁应用成功」）。正规做法是走 `pwsh -File .\sync-official.ps1`（先同步官方源码再打补丁） |
+| 重新应用补丁 | `node .\official-patches\apply-patches.mjs .\Deepseek_DSH\packages` **⚠️ 只应对纯净官方副本重跑**：其中 8 个 append 型补丁**不幂等**，在已打过补丁的副本上重跑会重复插入（脚本仍报「全部补丁应用成功」）。正规做法是走 `pwsh -File .\sync-official.ps1`（先同步官方源码再打补丁） |
 | 仅重建 profile | `node .\reapply-cli.mjs` |
 | 改配置后推送 | push 插件（绑定 `dsh-ops`），或 `git push` |
 
 > 平级官方 checkout 若被删掉，`更新DSH.bat` / `sync-official.ps1` 会**自动重新克隆**它
 > （需要网络可达 GitHub）；也可以手工 `git clone --depth 1 https://github.com/deepseek-ai/deepseek-harness.git <DSH-ops 的父目录>\Deepseek_DSH`。
+
+---
+
+## 版本锚定（`DSH_OFFICIAL_REF`）
+
+补丁是**针对官方源码具体文本**的精确替换（fail-loud），所以「同一套 DSH」= 同一份官方源码 +
+同一份补丁。官方默认分支一动，新机克隆到的就是另一份源码，补丁可能失配或行为漂移。
+
+**新机不需要设任何环境变量**：锚点声明在仓库里（`official-patches/official-ref.txt`），
+四条自动克隆点都按下面的顺序取值，取到就作为 `git clone --depth 1 --branch <值>` 的锚点：
+
+| 顺序 | 来源 | 说明 |
+|---|---|---|
+| 1 | 环境变量 `DSH_OFFICIAL_REF` | 临时指定/覆盖，优先级最高 |
+| 2 | `official-patches\official-ref.txt` 首个非注释行 | **入库的声明值 = 新机默认锚点** |
+| 3 | （都没有） | 不追加 `--branch`，克隆远端默认分支（旧行为） |
+
+| 脚本 | 作用点 |
+|---|---|
+| `bootstrap-personal.ps1` | 第 1 步（`.\Deepseek_DSH\`）与 1b（`..\Deepseek_DSH\`）两处克隆 |
+| `sync-official.ps1` | 平级 checkout 缺失时的自动补克隆 |
+| `update-dsh.ps1` | 平级 checkout 缺失时的自动补克隆 |
+
+```powershell
+# 默认：直接用 official-ref.txt 的声明值，无需任何设置
+pwsh -File .\bootstrap-personal.ps1
+# 需要临时换版本时（只对当前会话生效）
+$env:DSH_OFFICIAL_REF = 'dsh-v0.1.6-alpha.2'
+```
+
+- **只能填 tag 或分支名，不能填裸 commit SHA**——`git clone --branch` 不接受未指向 ref 的 SHA。
+  官方仓库默认分支是 `master`，发版以 tag 形式打在上面（`dsh-v<版本>`）。
+- **开发机当前锚定值 = `dsh-v0.1.6-alpha.2`**（平级官方 checkout `..\Deepseek_DSH\` 在 `master`、
+  工作区干净、`git describe --tags --exact-match` 即该 tag；且该提交**同时就是** `origin/master`
+  当下的尖端，所以此刻钉 tag 与钉分支等价）。升级官方后落到新 tag 时，请同步改 `official-ref.txt`。
+- **锚点只在克隆时生效**：升级链后续仍跟进远端默认分支，所以锚点管的是「新机首装拿到哪一份」，
+  不是「永远锁死」。
+- 副本 `.\Deepseek_DSH\` 由 `sync-official.ps1` 用 robocopy 从平级 checkout 同步（`/XD .git`，
+  所以副本**不保留** git 元数据）——它是**产物**，不是仓库；锚定只需管住平级 checkout 那一份。
+
+### 钉 tag 的克隆是「游离 HEAD」——升级链已适配
+
+`git clone --branch <tag>` 会把工作区 checkout 到该 tag，即 **detached HEAD**（游离 HEAD），
+而且 `--single-branch` 隐含的 refspec **只取那个 tag**：`origin/master` 根本不存在。
+
+这两点都会打断升级链，本仓库已针对性处理（2026-09-19 部署审核）：
+
+| 环节 | 处理 |
+|---|---|
+| 克隆后 | `Initialize-PinnedClone`（`lib-official-ref.ps1`）把 refspec 修正成标准分支映射，使后续 `git fetch origin` 能创建 `origin/master`（幂等，普通克隆调用无副作用） |
+| 升级时 | `update-dsh.ps1` 检测到游离 HEAD 时**不用** `git pull --ff-only`（在浅克隆边界下它必然报 `Not possible to fast-forward`，实测会死锁），改用 `git checkout --detach origin/master` 整体切到远端尖端 |
+| 老副本 | 若某个 checkout 的 refspec 还是「只取 tag」的旧形态，升级链会**就地修正 + 重新 fetch** 后继续，不需要手工干预 |
+
+实测（三种克隆形态各跑一遍升级，含上游删除文件的场景）：游离 HEAD + 已修正 refspec、
+游离 HEAD + 旧 refspec（走兜底）、普通分支克隆（走原 `pull --ff-only`）**全部通过**，
+工作树与提交完全一致、无残留脏文件；且仓库始终保持 shallow——**不需要**为升级下载
+约 287 MB 的全量历史。
 
 ---
 
@@ -187,14 +250,19 @@ pwsh -File .\start-dsh-web.ps1
 - **凭据/密钥不入仓库**：`settings.yaml`、`.credentials.yaml`、`personal.local.json`、
   `github-push\credentials.json` 均为本机文件；新机必须手工提供。
 - **模型 provider**：settings.yaml 里的 provider 通道是本机特有的，新机按需要调整。
-- **隔离演练**：`DSH_HOME` 被 bootstrap / start-dsh-web / watchdog / reapply / validate-plugins /
-  disable-plugin / check-plugin-copy 尊重；`update-dsh.ps1` 与 `health-check.py` 固定 `~/.dsh`
-  ——演练时别跑 `update-dsh.ps1`。
+- **隔离演练**：`DSH_HOME` 被部署链与体检链**全部尊重**——`bootstrap-personal.ps1`、`update-dsh.ps1`、
+  `watchdog-dsh.ps1`、`health-check.py`、`reapply-cli.mjs`（经 `dsh-personal-hub`）、`validate-plugins.mjs`、
+  `disable-plugin.mjs`、`check-plugin-copy.mjs`；`start-dsh-web.ps1` 自己不拼用户目录，
+  `DSH_HOME` 由子进程继承。**唯一约束是 3080 端口只有一个**（见第 4 步）。
 - **无开机自启**：看门狗只在 `start-dsh-web.ps1` 成功路径被拉起，本机没有计划任务/注册表 Run 项/
   Windows 服务。重启电脑后要手动跑一次 `启动DSH.bat`（或自己加一个登录自启项）。
 - **定位链**：node / pwsh / python 都按「环境变量覆盖 → PATH → 常见安装位」解析
   （`DSH_NODE_PATH` / `DSH_PWSH_PATH` / `DSH_PYTHON_PATH` 可显式指定）。裸 `python` 若解析到
   Microsoft Store 桩会被探测逻辑拒绝——请装 python.org 版本。
+  **三个用户入口同样走定位链**：`启动DSH.bat` / `更新DSH.bat` / `health-check.cmd` 都按
+  「`DSH_PWSH_PATH` → `where pwsh` → `%ProgramFiles%\PowerShell\7` → `%LocalAppData%\Microsoft\WindowsApps`」
+  找 pwsh，**不含任何本机特定路径**；找不到时报错并提示装 pwsh 7 或设 `DSH_PWSH_PATH`。
+  ⚠️ 这三个 `.bat`/`.cmd` **必须保持纯 ASCII**：cmd.exe 按 OEM 代码页解码，中文注释会变成乱码并被当作命令执行。
 - **`cordis.patch.yml` 里的非托管条目**：官方 Agent Teams 会自行写入 `tool-agent-team` 这类条目；
   reapply **逐字保留**非托管条目但**不生成**它们（也不计为漂移，只在设置页 notes 里提示）。
   新机通常由官方组件在首次运行时补写；若对比发现缺失，照开发机的
@@ -222,11 +290,13 @@ git log origin/main..HEAD --oneline    # 期望：空（非空 = 有提交没推
 
 - `personal-hub/personal.json`（清单：plugins / extraBundles / extraPatches）
 - `official-patches/notes/`（**先**）→ `official-patches/apply-patches.mjs`（**后**）
+- `official-patches/official-ref.txt`（官方源码版本锚点声明值——缺它新机就退回「克隆远端默认分支」）
 - `plugins/dsh-computer-use/`、`plugins/dsh-personal-bar/`（两个插件整目录）
 - `plugins/dsh-personal-hub/index.js` 与 `client.js`、`plugins/*/package.json`、
   `plugins/dsh-plugin-guide/client.js`、`plugins/dsh-deepseek-balance/`（补丁效果的配套消费者）
 - `start-dsh-web.ps1`、`bootstrap-personal.ps1`、`update-dsh.ps1`、`sync-official.ps1`、
-  `check-update.ps1`、`watchdog-dsh.ps1`（部署链）
+  `check-update.ps1`、`watchdog-dsh.ps1`、`lib-official-ref.ps1`、`lib-proxy.ps1`（部署链；
+  **两个 `lib-*.ps1` 是 dot-source 依赖，漏了脚本会直接报错**）
 - `health-check.py`、`health-check.ps1`、`health-check.cmd`、`validate-plugins.mjs`、
   `check-plugin-copy.mjs`、`test-standard.mjs`（闸门与体检）
 - `启动DSH.bat`、`更新DSH.bat`（用户入口——曾经不在远端，导致文档指向的命令不存在）
