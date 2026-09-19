@@ -1,6 +1,6 @@
 # BUG 记录索引
 
-共 236 条（fixed 196 / workaround 18 / open 22）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
+共 237 条（fixed 197 / workaround 18 / open 22）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
 
 | 日期 | 记录 | 组件 | 严重度 | 状态 | 症状 |
 |---|---|---|---|---|---|
@@ -8,6 +8,7 @@
 | 2026-09-19 | [2026-09-19-tool-python-roots-missing-localappdata](2026-09-19-tool-python-roots-missing-localappdata.md) | dsh-tool-python | minor | fixed | 在 Python 装在 %LOCALAPPDATA%\Python\pythoncore-3.14-64（python.org per-user 新布局）的机器上，若未在 profile 里钉死 pythonPath，dsh-tool-python 会自动发现失败并报「未找到可用的 Python 3」；而 health-check 却能找到同一个解释器，两条定位链结论不一致 |
 | 2026-09-19 | [2026-09-19-subagent-model-policy-frozen-per-session](2026-09-19-subagent-model-policy-frozen-per-session.md) | dsh-subagent / tool-subagent（官方） | minor | workaround | 已在设置里授权子代理可用的模型，但派子代理仍报 child LLM route "provider/model" is not allowed for this Session；改设置与重启服务均无效 |
 | 2026-09-19 | [2026-09-19-start-dsh-web-node-hardcoded](2026-09-19-start-dsh-web-node-hardcoded.md) | start-dsh-web.ps1 | major | fixed | 新电脑若 node 不装在 C:\Program Files\nodejs（nvm-windows/fnm/volta/scoop 或装在别的盘），start-dsh-web.ps1 三次启动尝试全灭、服务根本起不来；update-dsh.ps1 在 $ErrorActionPreference='Stop' 下直接中止 |
+| 2026-09-19 | [2026-09-19-pwsh-automationnull-cast-trap](2026-09-19-pwsh-automationnull-cast-trap.md) | bootstrap-personal.ps1 | minor | fixed | bootstrap 前置检查打印了「前置条件不满足…」的 fatal 列表，却没有以非零退出码结束（继续往下走）；同时 stderr 出现 "You cannot call a method on a null-valued expression"，且 pnpm 明明存在却被报成「未找到 pnpm」。 |
 | 2026-09-19 | [2026-09-19-plant-chain-server-semantics-drift](2026-09-19-plant-chain-server-semantics-drift.md) | banmu-server/game_actions.js | major | open | 文字版农田链路多处服务端语义不自洽：check_stage 的 elapsed 未按灾难冻结、farm_water 把 tu_di_zhuang_tai 从 3 覆盖为 2、farm_checkpoint 恒 out_of_sync 且无开垦校验 |
 | 2026-09-19 | [2026-09-19-openid-logic-81-already-expanded-land-le](2026-09-19-openid-logic-81-already-expanded-land-le.md) | banmu-server/fuwuqi.js | major | open | 新 openid 进「文字版游戏」（后台 /logic 页）后 81 格全显示「荒地·尚未开垦」且无任何播种入口：点单格「开垦」返回 already_expanded、点「开垦一块新土地」按钮因 land_left=0 被禁用（提示 9/9 已全部开垦），花坊页显示「土地 0/9 块已开垦」而世界地图提示显示「已开垦 9 · 可再开 0」，同一玩家两个数字自相矛盾。 |
 | 2026-09-19 | [2026-09-19-official-ref-tag-clone-detached-update](2026-09-19-official-ref-tag-clone-detached-update.md) | update-dsh.ps1 | major | fixed | 按官方源码版本锚点克隆（DSH_OFFICIAL_REF / official-ref.txt → git clone --depth 1 --branch <tag>）后，新机上的升级链失效：update-dsh.ps1 报 `fatal: Needed a single revision`（origin/master 解析失败），随后 `git pull --ff-only` 在游离 HEAD 上退出 0 却什么都不做——升级静默变成空操作，用户以为升级成功但版本从未前进。 |

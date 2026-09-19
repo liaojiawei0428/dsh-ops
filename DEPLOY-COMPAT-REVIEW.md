@@ -411,3 +411,50 @@ python -V ; py -3 -V
 
 **全程未修改任何文件**（除本报告），未重启服务，未安装依赖。
 **注**：审核过程中曾在 `E:\DSH\DSH-ops\` 误建一个临时探测脚本 `_tmp_idem_probe.mjs`，**已立即删除**并用 `node -e` 内联方式重做；`git status --porcelain` 已确认工作区恢复原状（仅剩审核前既有的改动）。
+
+---
+
+## 六、整改后状态（2026-09-19 复核，提交 `2c746842e4` 及后续）
+
+本节由整改方追加，逐条对账上面「三、缺口清单」。**状态以实测为准**，与审核时的判定不一致处
+一并注明（本报告的个别判定经复测后不成立，见文末「审核结论的两处更正」）。
+
+| 编号 | 状态 | 落地方式 / 证据 |
+|---|---|---|
+| **B1** 未提交改动 | ✅ 已修 | 24 条补丁随 `2c746842e4` 入库并推送；**全新克隆实测** `apply-patches.mjs` = 24 条 |
+| **B2** 无版本固定 | ✅ 已修（并加固） | 新增 `lib-official-ref.ps1`（env `DSH_OFFICIAL_REF` > 入库声明 `official-patches/official-ref.txt` > 远端默认分支），4 处克隆点全部接入；声明值 `dsh-v0.1.6-alpha.2`。**另修掉锚点自身引入的缺陷**：钉 tag 的克隆是游离 HEAD 且 refspec 只取 tag，会让升级链解析 `origin/master` 失败、`pull` 静默空转 → `Initialize-PinnedClone` 修 refspec + 游离 HEAD 走 `checkout --detach`。三种克隆形态实测通过（buglog `official-ref-tag-clone-detached-update`） |
+| **M1** settings.yaml 是骨架 | ✅ 已修 | 两条建议都采纳：`config/settings.yaml` 末尾加注释块列出缺的三个命名空间与字段形状；DEPLOY.md 第 3 步表格同时明列缺项 |
+| **M2** bootstrap 无前置检查 | ✅ 已修 | 新增第 0 步前置条件检查（PowerShell 7 / git / node 版本 / pnpm 版本 / 用户数据根；python 仅警告），缺项逐条给 `winget` 命令并 `exit 1`。**6 个场景实测**（真实环境、PATH 无工具、版本不符、命令存在但读不到版本、DSH_HOME 已设、USERPROFILE 为空）全部符合预期 |
+| **M3** health-check.cmd 硬编码 | ✅ 已修 | 去掉 `E:\GongJu\7\pwsh.exe` 层，改为 `DSH_PWSH_PATH` → `where pwsh` → `%ProgramFiles%` → `%LocalAppData%` 定位链 |
+| **M4** `.bat` 用裸 pwsh.exe | ✅ 已修 | `启动DSH.bat` / `更新DSH.bat` 采用与 M3 同一条定位链（含 `DSH_PWSH_PATH`），找不到时明确报错并提示安装 |
+| **M5** 缺 git 时报英文错 | ✅ 已修 | git 检查提前到第 0 步，中文指引；克隆失败的中文提示现在一定可达 |
+| **D1** DEPLOY.md 说 update-dsh 不读 DSH_HOME | ✅ 已修 | 该表述删除，改为与代码一致的说明 |
+| **D2** DSH_HOME 支持列表不准 | ✅ 已修 | 实测后重列：`bootstrap-personal` / `update-dsh` / `watchdog-dsh` / `health-check.py` / `reapply-cli`（经 personal-hub）/ `validate-plugins` / `disable-plugin` / `check-plugin-copy` 均支持；`start-dsh-web` 不拼用户目录、由子进程继承 |
+| **D3** 模板「按本机路径改写」属过度提示 | ❌ **判定不成立** | 复测：`config/AGENTS-global-template.md` **确有 4 处 `<盘符>` 占位**（第 4/36/38/43 行）且文件头就要求替换。DEPLOY.md 原表述正确，**未改** |
+| **D4** USERPROFILE 无兜底 | ✅ 已修 | 第 0 步校验：无 `DSH_HOME` 且 `%USERPROFILE%` 为空即拦截并提示显式设 `DSH_HOME` |
+| **D5** 补丁计数不一致 | ✅ 已修 | DEPLOY.md 改为 24 条 / 8 非幂等，与新 HEAD 一致 |
+| **S1** 加「验证部署确实一致」 | ✅ 已做 | 新增「版本锚定」整节（含开发机锚定值、只接受 tag/分支、只在克隆时生效） |
+| **S2** clone 加 `-OfficialRef` 参数 | ✅ 已做（换实现） | 用环境变量 + **入库声明文件**替代参数：新机不设任何变量也复现同一份源码，比参数更省事 |
+| **S3** 补全 settings.yaml 骨架 | ✅ 已做 | 见 M1 |
+| **S4** bootstrap 加前置检查 | ✅ 已做 | 见 M2/M5 |
+| **S5** health-check.cmd 去硬编码 | ✅ 已做 | 见 M3 |
+| **S6** `.bat` 改 `where pwsh` 回落 | ✅ 已做 | 见 M4（未改用 `powershell.exe` 5.1——PLUGIN-STANDARD 要求恒用 pwsh 7） |
+| **S7** 修 DSH_HOME 表述 | ✅ 已做 | 见 D1/D2 |
+| **S8** 交付前检查可脚本化 | ✅ 已做 | DEPLOY.md「附：交付前检查」加了可复制的一发判定（看输出是否为空，**不用** `git status` 的退出码——它有改动时也是 0）与 `ls-remote` 核对 |
+
+### 本次额外的整改（不在原缺口清单内）
+
+- **编码卫生闸门**：`test-standard.mjs` 新增 **T5**（`.ps1` 必须有 UTF-8 BOM、`.cmd`/`.bat` 必须
+  纯 ASCII）；`PLUGIN-STANDARD.md` 的 P7/D2/D5 与提交前清单同步这条纪律。上线即抓到两处无 BOM
+  残留副本（buglog `encoding-hygiene-gate-missing`）。
+- **清理**：删除本仓库里被提交进库的审核沙箱 `research/deploy-audit/_sandbox/`（临时脚本副本、
+  假 profile、pnpm shim）。
+
+### 审核结论的两处更正
+
+1. **第 19 条「`config/AGENTS-global-template.md` 不含任何机器特定字样」不成立** —— 该模板含
+   4 处 `<盘符>` 占位符（见 D3）。
+2. **推断 4「`--depth 1` 克隆后 tag 不可用」不成立（就本用途而言）** —— 实测
+   `git clone --depth 1 --branch <tag>` 能按 ref 拉取该 tag 并 checkout 到 tag 指向的提交
+   （用带两个提交的本地仓库验证：检出的是 tag 那个提交的内容，而非更新的提交）。真正的问题是
+   由此产生的**游离 HEAD + 只取 tag 的 refspec**，已按 B2 处理。

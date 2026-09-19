@@ -28,9 +28,109 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+# ---------- 0. 前置条件检查（2026-09-19 部署审核 M2/M5/S4/D4） ----------
+# 新机最容易缺的是 git / pnpm。不先检查的后果是：缺 git 时克隆那行抛 PowerShell 英文
+# CommandNotFoundException（走不到下面「VPN/代理需先就绪」的中文提示，M5）；缺 pnpm 或
+# Node 版本不符时，要等 3~4 分钟的依赖安装或构建阶段才以英文报错炸出来（M2）。
+# 这里把校验提前到第 0 步，并对每个缺口给出可直接执行的安装命令（= DEPLOY.md 第 0 步）。
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+  throw "必须用 PowerShell 7 运行本脚本（当前 $($PSVersionTable.PSVersion)）。安装: winget install Microsoft.PowerShell"
+}
+
+function Test-CommandVersion {
+  param([string]$Exe, [string[]]$VersionArgs)
+  $cmd = Get-Command $Exe -ErrorAction SilentlyContinue
+  if (-not $cmd) { return @{ Present = $false; Version = ''; Path = '' } }
+  $raw = $null
+  try { $raw = (& $Exe @VersionArgs 2>$null | Select-Object -First 1) } catch { $raw = $null }
+  # 坑（2026-09-19 实测）：命令无输出时 $raw 是 AutomationNull，而 [string]AutomationNull
+  # 得到的是 $null 而不是 ''，于是 ([string]$raw).Trim() 抛
+  # "You cannot call a method on a null-valued expression"；在 $ErrorActionPreference='Stop'
+  # 下这会中断整个脚本，连后面的 exit 1 都跑不到（表现为"报了错却继续执行"）。
+  # 所以必须先判 $null 再做字符串化。
+  $ver = if ($null -eq $raw) { '' } else { "$raw".Trim() }
+  return @{ Present = $true; Version = $ver; Path = [string]$cmd.Source }
+}
+
+$fatal = @()
+
+# git：克隆与升级链的硬依赖
+$git = Test-CommandVersion -Exe 'git' -VersionArgs @('--version')
+if (-not $git.Present) {
+  $fatal += "未找到 git。安装: winget install Git.Git（装完重开终端）"
+} else {
+  Write-Host "前置 OK : git $($git.Version)"
+}
+
+# Node.js：官方要求 ^22.19 || >=24
+$node = Test-CommandVersion -Exe 'node' -VersionArgs @('-v')
+if (-not $node.Present) {
+  $fatal += "未找到 node。安装 Node.js ^22.19 或 >=24: winget install OpenJS.NodeJS.LTS（或用 nvm/fnm/volta，脚本走定位链）"
+} elseif ($node.Version -eq '') {
+  $fatal += 'node 命令存在但读不到版本（`node -v` 失败或无输出）—— 请在该终端手动运行 node -v 确认；常见原因是环境变量不完整'
+} else {
+  $nv = $node.Version -replace '^v', ''
+  $parts = $nv.Split('.')
+  $maj = 0; $min = 0
+  [void][int]::TryParse($parts[0], [ref]$maj)
+  if ($parts.Length -gt 1) { [void][int]::TryParse($parts[1], [ref]$min) }
+  $nodeOk = ($maj -gt 24) -or ($maj -eq 24) -or ($maj -eq 22 -and $min -ge 19)
+  if (-not $nodeOk) {
+    $fatal += "Node 版本不符: 当前 $($node.Version)，官方要求 ^22.19 或 >=24"
+  } else {
+    Write-Host "前置 OK : node $($node.Version)"
+  }
+}
+
+# pnpm：官方 lockfile 用 pnpm 11
+$pnpm = Test-CommandVersion -Exe 'pnpm' -VersionArgs @('-v')
+if (-not $pnpm.Present) {
+  $fatal += "未找到 pnpm。安装: corepack enable（Node 自带 corepack）或 npm i -g pnpm@11"
+} elseif ($pnpm.Version -eq '') {
+  # 实测：%USERPROFILE% 为空时 pnpm 自身会失败（它要靠这些环境变量定位 store/缓存），
+  # 此时报"未找到 pnpm"是错的——命令其实在，只是跑不起来。
+  $fatal += 'pnpm 命令存在但读不到版本（`pnpm -v` 失败或无输出）—— 请手动运行 pnpm -v；常见原因是环境变量不完整（如 %USERPROFILE%/%APPDATA% 为空）或 shim 损坏'
+} else {
+  $pmaj = 0
+  [void][int]::TryParse(($pnpm.Version -split '\.')[0], [ref]$pmaj)
+  if ($pmaj -lt 11) {
+    $fatal += "pnpm 版本过低: 当前 $($pnpm.Version)，官方 lockfile 需要 pnpm 11+（npm i -g pnpm@11）"
+  } else {
+    Write-Host "前置 OK : pnpm $($pnpm.Version)"
+  }
+}
+
+# 用户数据根：DSH_HOME 缺省取 %USERPROFILE%\.dsh。服务账户下 USERPROFILE 可能为空，
+# 那样 profile 会被装到相对路径且不报错（D4），所以这里直接拦住。
+$userProfile = $env:USERPROFILE
+if (-not $env:DSH_HOME -and (-not $userProfile -or $userProfile.Trim() -eq '')) {
+  $fatal += '未设置 DSH_HOME 且 %USERPROFILE% 为空 —— 无法确定用户数据根目录。请显式设置 DSH_HOME 后重试'
+}
+
+# python：非致命（bootstrap 本身不需要），但缺了会让 dsh-tool-python 不可用、
+# 且个人覆盖层探测不到 pythonPath —— 第 4 步验收必红，所以提前警告并给安装命令。
+$py = Get-Command python -ErrorAction SilentlyContinue
+$pyLauncher = Get-Command py -ErrorAction SilentlyContinue
+if (-not $py -and -not $pyLauncher) {
+  Write-Host '前置警告: 未找到 python（命令 python / py 均不可用）。'
+  Write-Host '          dsh-tool-python 与 health-check 的体检第 1 条都依赖它，建议现在装:'
+  Write-Host '          winget install Python.Python.3.12（勿用 Microsoft Store 版；装完重开终端）'
+} else {
+  Write-Host "前置 OK : python（$(if ($py) { $py.Source } else { 'py launcher' })）"
+}
+
+if ($fatal.Count -gt 0) {
+  Write-Host ''
+  Write-Host '前置条件不满足，部署未开始（命令行环境不完整时继续只会得到英文报错）:'
+  foreach ($f in $fatal) { Write-Host "  - $f" }
+  Write-Host ''
+  Write-Host '完整清单见 DEPLOY.md 第 0 步；装完请重开终端（PATH 才会刷新）后重跑本脚本。'
+  exit 1
+}
+Write-Host ''
+
 $repo = $PSScriptRoot
 $copy = Join-Path $repo 'Deepseek_DSH'
-$userProfile = $env:USERPROFILE
 
 # 官方源码版本锚点（2026-09-19 部署审核 B2）：解析顺序 = 环境变量 DSH_OFFICIAL_REF
 # → official-patches\official-ref.txt（入库声明值）→ 远端默认分支。见 lib-official-ref.ps1。

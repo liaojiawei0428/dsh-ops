@@ -88,6 +88,10 @@ pwsh -File .\bootstrap-personal.ps1
 
 脚本按顺序完成（每步有进度输出，任一步失败即中止并说明原因）：
 
+0. **前置条件检查**（2026-09-19 起）→ 运行环境（PowerShell 7）、`git`、Node 版本
+   （`^22.19 || >=24`）、`pnpm` 版本（11+）、用户数据根（`DSH_HOME` 或 `%USERPROFILE%`）；
+   缺项**在动手之前**逐条列出并给出 `winget` 安装命令后 `exit 1`（python 只警告不拦）。
+   这样新机不会等到 3~4 分钟后的依赖安装/构建阶段才拿到英文报错。
 1. **克隆官方源码** → `.\Deepseek_DSH\`（`git clone --depth 1`；需要网络可达 GitHub）
 1b. **克隆平级官方 checkout** → `..\Deepseek_DSH\`（升级链的拉取源，见「架构速览」）
    > 两处克隆都按**入库的版本锚点**（`official-patches\official-ref.txt`）取官方源码，
@@ -214,8 +218,10 @@ $env:DSH_OFFICIAL_REF = 'dsh-v0.1.6-alpha.2'
   当下的尖端，所以此刻钉 tag 与钉分支等价）。升级官方后落到新 tag 时，请同步改 `official-ref.txt`。
 - **锚点只在克隆时生效**：升级链后续仍跟进远端默认分支，所以锚点管的是「新机首装拿到哪一份」，
   不是「永远锁死」。
-- 副本 `.\Deepseek_DSH\` 由 `sync-official.ps1` 用 robocopy 从平级 checkout 同步（`/XD .git`，
-  所以副本**不保留** git 元数据）——它是**产物**，不是仓库；锚定只需管住平级 checkout 那一份。
+- 副本 `.\Deepseek_DSH\` 是**产物**，不是仓库：`sync-official.ps1` 用 robocopy 从平级 checkout
+  覆盖同步（`/XD .git` 不搬官方的 git 元数据）。**本机这份连自己的 `.git` 都没有**——在它里面跑
+  `git` 命令会向上解析到 DSH-ops 仓库（2026-09-19 实测，别被 `git -C` 的输出误导）；新机 bootstrap
+  会 clone 出带 `.git` 的副本，这不影响升级链（升级只管平级 checkout 那一份）。
 
 ### 钉 tag 的克隆是「游离 HEAD」——升级链已适配
 
@@ -284,9 +290,25 @@ git status --porcelain                 # 期望：空（非空 = 新机拿不到
 git log origin/main..HEAD --oneline    # 期望：空（非空 = 有提交没推上去）
 ```
 
-两行都不为空时，**必须先提交并推送**，否则新机部署出来的不是这一套 DSH。提交前请人工审阅，
-至少要确保下列关键件都在版本库里（**顺序敏感：`official-patches/notes/` 必须先于
-`apply-patches.mjs` 提交**——后者的 restore 段以 notes 为唯一真相源，缺它会直接 exit 1）：
+可直接复制的一发判定（退出码 0 = 交付状态 OK，可交给脚本判断；注意**不要**用
+`git status` 的退出码——它有改动时也是 0，必须看输出是否为空）：
+
+```powershell
+cd <开发机>\DSH-ops
+$dirty = git status --porcelain
+$ahead = git log origin/main..HEAD --oneline
+if ($dirty) { "❌ 有未提交改动（新机拿不到）:`n$dirty" }
+if ($ahead) { "❌ 有未推送提交:`n$ahead" }
+if ($dirty -or $ahead) { exit 1 }
+'✅ 交付状态 OK：工作区干净、无未推送提交 —— 新机可 clone 到与开发机一致的内容'
+```
+
+再验一次「远端真的收到了」：`git ls-remote origin refs/heads/main` 应与
+`git rev-parse HEAD` 相同（本机直连 GitHub 常被拦，需带代理：
+`git -c http.proxy=<系统代理> ls-remote origin refs/heads/main`）。
+
+提交前请人工审阅，至少要确保下列关键件都在版本库里（**顺序敏感：`official-patches/notes/`
+必须先于 `apply-patches.mjs` 提交**——后者的 restore 段以 notes 为唯一真相源，缺它会直接 exit 1）：
 
 - `personal-hub/personal.json`（清单：plugins / extraBundles / extraPatches）
 - `official-patches/notes/`（**先**）→ `official-patches/apply-patches.mjs`（**后**）
