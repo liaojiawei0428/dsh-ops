@@ -1,7 +1,7 @@
 {
   "name": "dsh-restart-resume",
   "version": "0.1.0",
-  "description": "DSH system component: dsh-restart-resume",
+  "description": "重启后自动续聊：request_restart 经独立进程重启 DSH 服务，完成后向原会话回发继续消息",
   "private": true,
   "type": "module",
   "main": "index.js",

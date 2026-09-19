@@ -1,7 +1,7 @@
 {
   "name": "dsh-tool-python",
   "version": "0.1.0",
-  "description": "DSH system component: model-facing Python 3 execution tool over the shell seam",
+  "description": "面向模型的 Python 3 执行工具（走 shell 通道，本机默认计算入口）",
   "private": true,
   "type": "module",
   "main": "index.js",

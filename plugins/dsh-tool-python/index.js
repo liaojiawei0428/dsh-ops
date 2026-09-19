@@ -47,10 +47,16 @@ async function probePython(exe, prefixArgs = []) {
   }
 }
 
-/** Common Windows install locations to scan for Python3* directories. */
+/** Common Windows install locations to scan for Python 3 directories. */
 function pythonInstallRoots() {
   const roots = []
-  if (process.env.LOCALAPPDATA) roots.push(join(process.env.LOCALAPPDATA, 'Programs', 'Python'))
+  if (process.env.LOCALAPPDATA) {
+    roots.push(join(process.env.LOCALAPPDATA, 'Programs', 'Python'))
+    // python.org 的 per-user 安装落在 %LOCALAPPDATA%\Python\pythoncore-<ver>-64
+    // （旧布局为 Python3xx-64）。这个根此前缺失，使该布局只有在 config.pythonPath
+    // 被显式钉住时才可见——而 health-check 的定位链含它，两条链不一致。
+    roots.push(join(process.env.LOCALAPPDATA, 'Python'))
+  }
   if (process.env.ProgramFiles) roots.push(process.env.ProgramFiles)
   if (process.env['ProgramFiles(x86)']) roots.push(process.env['ProgramFiles(x86)'])
   return roots
@@ -80,7 +86,7 @@ async function discoverPython() {
   // 4. Standard install roots, per-user location first.
   for (const root of pythonInstallRoots()) {
     let names = []
-    try { names = (await readdir(root)).filter(n => /^Python3\d*/i.test(n)) } catch { continue }
+    try { names = (await readdir(root)).filter(n => /^(Python3\d*|pythoncore-)/i.test(n)) } catch { continue }
     names.sort() // Python312 < Python313 < Python314 …; prefer highest
     for (let i = names.length - 1; i >= 0; i -= 1) {
       const candidate = join(root, names[i], 'python.exe')

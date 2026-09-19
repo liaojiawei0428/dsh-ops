@@ -1,7 +1,7 @@
 {
   "name": "dsh-deepseek-balance",
   "version": "0.1.0",
-  "description": "DSH system component: DeepSeek account balance capsule in the session header",
+  "description": "作曲器下方个人胶囊行的余额与 DSH 版本两个胶囊",
   "private": true,
   "type": "module",
   "main": "index.js",

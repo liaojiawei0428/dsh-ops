@@ -1,4 +1,4 @@
-param(
+﻿param(
   # 轮询周期与去抖计数可调，默认 30 秒 x 2 = 连续 60 秒无监听才认定死亡。
   [int]$IntervalSeconds = 30,
   [int]$DebounceMisses = 2

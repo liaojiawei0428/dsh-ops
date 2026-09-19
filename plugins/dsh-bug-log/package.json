@@ -1,7 +1,7 @@
 {
   "name": "dsh-bug-log",
   "version": "0.1.0",
-  "description": "DSH system component: persistent bug knowledge base (bug_report/bug_search/bug_stats tools + recall prompt + missed-record heuristic)",
+  "description": "持久化 BUG 知识库：bug_report / bug_search / bug_stats 三个工具 + 排查前召回提示 + 漏记启发式提醒",
   "private": true,
   "type": "module",
   "main": "index.js",

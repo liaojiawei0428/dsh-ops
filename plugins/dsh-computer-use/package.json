@@ -1,0 +1,19 @@
+{
+  "name": "dsh-computer-use",
+  "version": "0.1.0",
+  "description": "挂载官方 computer-use 服务与 Cua Driver 原生 provider（纯 patch 引入的 bundle 行，无自有代码）",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

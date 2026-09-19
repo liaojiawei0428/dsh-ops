@@ -1,0 +1,24 @@
+{
+  "name": "dsh-personal-bar",
+  "version": "0.1.0",
+  "description": "作曲器下方的个人插件胶囊行容器：声明 dsh.personal.bar 子槽位，独占一行并支持自动换行扩展",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  }
+}

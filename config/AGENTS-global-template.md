@@ -17,6 +17,20 @@
 - 反例（必须用 python 而非 pwsh）：读日志（Get-Content）、改 JSON 配置（ConvertFrom-Json）、文本搜索（Select-String）、端口/文件轮询循环。
 - pwsh 必须为 7.x（5.1 禁用）：**永远不要硬编码 pwsh 路径**，用定位链（Get-Command 优先、常见安装位置回退）；非标准安装位时设 `DSH_PWSH_PATH` 或加入 PATH。
 
+## 子代理模型分派（个人偏好，硬规则）
+
+用户始终在「设置 → 插件 → Subagent」里授权**两个**模型，派子代理时按任务**显式指定** `provider` 与 `model`：
+
+- **弱档 = `agnes/agnes-3.0-flash`（固定不变）**：用于**简单、繁琐、以搜索与罗列为主**的任务——搜文件、枚举清单、批量读文档、grep 定位、格式转换、跑测试。这类任务的结果可机械核对，用弱档即可。
+- **强档 = 授权清单里 agnes 之外的另一个模型（名字不固定）**：用户会按需调配，**不要把名字写死**。用 `list_subagent_models`（不带参数）现查当前授权了哪两个，取非 agnes 的那个。用于写代码、改文件、代码审查、对抗性验证、交叉核对关键结论，以及**拿不准该用哪个**的时候。
+- **队友（`spawn_teammate`）一律用强档**：它的默认模型无法用配置固定，只能每次显式指定。
+- **验证类任务绝不用弱档**：弱模型的「我没发现问题」没有信息量，那种通过是假的。
+
+**两个机制坑**（决定上面这套能不能真的生效，详见 buglog 关键词 `subagent-model-policy-frozen-per-session`）：
+
+1. **授权清单在会话创建时固化，一份会话只采样一次**——用户改设置只对**新会话**生效，**重启服务无效**，回到旧会话状态照旧。诊断方法：读 `%USERPROFILE%\.dsh\storages\session_projcache\sessions\<sessionId>.json` 的 `record.rows.subagentModelSelectionPolicy.val`。
+2. **不显式指定模型时，子代理继承父 Agent 的模型**（这条路径不受清单约束）——所以「派子代理没报错」**不等于**「分派策略生效了」。要按上表分派，必须显式传 `provider` 与 `model`。
+
 ## DSH 服务纪律（硬规则）
 
 - DSH 状态检查统一入口：`<盘符>:\DSH\DSH-ops\health-check.cmd` 或 `pwsh -NoProfile -File <盘符>:\DSH\DSH-ops\health-check.ps1`（内部自动定位真实 python，规避命令行裸 `python` 解析到 MS Store 桩；全绿退出 0；发现服务/看门狗异常时自动复活后复查）。

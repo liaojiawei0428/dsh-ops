@@ -1,7 +1,7 @@
 {
   "name": "dsh-personal-hub",
   "version": "0.1.0",
-  "description": "DSH system component: dsh-personal-hub",
+  "description": "个人部署层：按声明式清单重建 web profile 的依赖、bundles 与 patch 托管条目（清单外项只补不删）",
   "private": true,
   "type": "module",
   "main": "index.js",

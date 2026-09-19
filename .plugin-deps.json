@@ -1,0 +1,167 @@
+{
+ "dsh-locale-language": {
+  "inject": [
+   "'systemPrompt'"
+  ],
+  "events": [],
+  "gets": [
+   "settings"
+  ],
+  "services": [
+   "systemPrompt"
+  ],
+  "tools": []
+ },
+ "dsh-deepseek-balance": {
+  "inject": [
+   "'slots'",
+   "'webServer'"
+  ],
+  "events": [],
+  "gets": [
+   "credentials",
+   "slots"
+  ],
+  "services": [
+   "webServer"
+  ],
+  "tools": []
+ },
+ "dsh-tool-python": {
+  "inject": [
+   "'tools', 'shell', 'systemPrompt'"
+  ],
+  "events": [],
+  "gets": [
+   "sandboxPolicy",
+   "shellEnv"
+  ],
+  "services": [
+   "shell",
+   "systemPrompt",
+   "tools"
+  ],
+  "tools": []
+ },
+ "dsh-bug-log": {
+  "inject": [
+   "'tools', 'systemPrompt'"
+  ],
+  "events": [
+   "agent/turn-stopping",
+   "tools/result"
+  ],
+  "gets": [],
+  "services": [
+   "systemPrompt",
+   "tools"
+  ],
+  "tools": [
+   "bug_report",
+   "bug_search",
+   "bug_stats"
+  ]
+ },
+ "dsh-personal-hub": {
+  "inject": [
+   "'slots'",
+   "'tools'"
+  ],
+  "events": [],
+  "gets": [
+   "connection",
+   "slots"
+  ],
+  "services": [
+   "tools"
+  ],
+  "tools": [
+   "personal_hub_reapply",
+   "personal_hub_status",
+   "personal_hub_validate"
+  ]
+ },
+ "dsh-plugin-guide": {
+  "inject": [
+   "'slots'",
+   ""
+  ],
+  "events": [],
+  "gets": [
+   "slots"
+  ],
+  "services": [],
+  "tools": []
+ },
+ "dsh-restart-resume": {
+  "inject": [
+   "'tools', 'sessionController'"
+  ],
+  "events": [],
+  "gets": [],
+  "services": [
+   "logger",
+   "sessionController",
+   "tools"
+  ],
+  "tools": [
+   "request_restart"
+  ]
+ },
+ "dsh-server-ssh": {
+  "inject": [
+   "\"slots\"",
+   "\"tools\", \"connection\"",
+   "'slots'",
+   "'tools', 'connection'"
+  ],
+  "events": [
+   "agent/created"
+  ],
+  "gets": [
+   "connection"
+  ],
+  "services": [
+   "logger",
+   "slots",
+   "tools"
+  ],
+  "tools": [
+   "root",
+   "ssh2",
+   "ssh_bash",
+   "ssh_edit",
+   "ssh_glob",
+   "ssh_grep",
+   "ssh_list",
+   "ssh_read",
+   "ssh_write"
+  ]
+ },
+ "dsh-github-push": {
+  "inject": [
+   "\"slots\"",
+   "\"connection\"",
+   "'slots'",
+   "'connection'"
+  ],
+  "events": [],
+  "gets": [
+   "connection"
+  ],
+  "services": [
+   "logger",
+   "slots"
+  ],
+  "tools": []
+ },
+ "dsh-computer-use": {
+  "inject": [
+   ""
+  ],
+  "events": [],
+  "gets": [],
+  "services": [],
+  "tools": []
+ }
+}

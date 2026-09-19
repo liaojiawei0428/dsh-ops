@@ -71,20 +71,25 @@ export function apply(ctx, config = {}) {
       schema: {
         type: 'object',
         additionalProperties: false,
-        required: ['ok', 'drift', 'summary'],
+        required: ['ok', 'drift', 'notes', 'summary'],
         properties: {
           ok: { type: 'boolean' },
           drift: { type: 'array', items: { type: 'string' } },
+          notes: { type: 'array', items: { type: 'string' } },
           summary: { type: 'string' },
         },
       },
-      render: (_args, value) => [{ type: 'text', text: value.ok ? `无漂移：${value.summary}` : `漂移 ${value.drift.length} 项：\n${value.drift.join('\n')}` }],
+      render: (_args, value) => {
+        const lines = [value.ok ? `无漂移：${value.summary}` : `漂移 ${value.drift.length} 项：\n${value.drift.join('\n')}`]
+        if (value.notes.length > 0) lines.push(`提示（非漂移，reapply 会保留）：\n${value.notes.join('\n')}`)
+        return [{ type: 'text', text: lines.join('\n') }]
+      },
     },
     async execute() {
       try {
         return statusReport(manifestPath)
       } catch (err) {
-        return { ok: false, drift: [], summary: `status failed: ${err.message}` }
+        return { ok: false, drift: [], notes: [], summary: `status failed: ${err.message}` }
       }
     },
   }), 'register personal_hub_status')
@@ -305,6 +310,16 @@ function validateManifest(manifestPath) {
   if (!Array.isArray(manifest.officialBundles) || manifest.officialBundles.length === 0) {
     errors.push('officialBundles must be a non-empty array')
   }
+  for (const key of ['extraBundles', 'removedBundles']) {
+    if (manifest[key] === undefined) continue
+    if (!Array.isArray(manifest[key])) {
+      errors.push(`${key} must be an array`)
+      continue
+    }
+    for (const name of manifest[key]) {
+      if (typeof name !== 'string' || name.length === 0) errors.push(`${key} entries must be non-empty strings: ${JSON.stringify(name)}`)
+    }
+  }
   if (typeof manifest.profileDir !== 'string' || manifest.profileDir.length === 0) {
     errors.push('profileDir must be a non-empty string')
   } else if (!existsSync(path.join(manifest.profileDir, 'package.json'))) {
@@ -336,12 +351,31 @@ function validateManifest(manifestPath) {
       else if (entry.patch.config !== undefined && (entry.patch.config === null || typeof entry.patch.config !== 'object')) errors.push(`${entry.name}: patch.config must be an object`)
     }
   }
+  // Cross-list consistency: one bundle may be declared exactly once, and a
+  // bundle cannot be both declared and removed.
+  const extraSet = new Set(Array.isArray(manifest.extraBundles) ? manifest.extraBundles : [])
+  for (const name of extraSet) {
+    if (official.has(name)) errors.push(`${name} is also listed in officialBundles`)
+    if (seen.has(name)) errors.push(`${name} is also listed in plugins`)
+  }
+  for (const name of Array.isArray(manifest.removedBundles) ? manifest.removedBundles : []) {
+    if (extraSet.has(name)) errors.push(`${name} is declared in extraBundles and removed in removedBundles at once`)
+  }
   if (manifest.extraPatches !== undefined) {
     if (!Array.isArray(manifest.extraPatches)) errors.push('extraPatches must be an array')
     else {
       for (const patch of manifest.extraPatches) {
         if (typeof patch?.id !== 'string' || patch.id.length === 0) errors.push('every extraPatches entry needs a string id')
         if (typeof patch?.name !== 'string' || patch.name.length === 0) errors.push('every extraPatches entry needs a string name')
+      }
+    }
+  }
+  if (manifest.extraDependencies !== undefined) {
+    if (manifest.extraDependencies === null || typeof manifest.extraDependencies !== 'object' || Array.isArray(manifest.extraDependencies)) {
+      errors.push('extraDependencies must be an object of package name → specifier')
+    } else {
+      for (const [depName, spec] of Object.entries(manifest.extraDependencies)) {
+        if (typeof spec !== 'string' || spec.length === 0) errors.push(`extraDependencies.${depName} must be a non-empty string`)
       }
     }
   }
@@ -503,14 +537,49 @@ function rebuildPatchYaml(existingText, manifest) {
   return parts.join('\n\n') + '\n'
 }
 
+/**
+ * The bundle list the manifest declares, in layer order: the official base
+ * layer, then the self-developed plugins, then `extraBundles` (official
+ * optional/experimental layers such as Agent Teams, which land on top).
+ * Everything else found in the live profile is FOREIGN and is preserved as-is
+ * by reapply — never pruned — because the plugin manager can add a bundle from
+ * the GUI between two reapplies.
+ */
+function declaredBundles(manifest) {
+  return [
+    ...(manifest.officialBundles ?? []),
+    ...manifest.plugins.map(p => p.name),
+    ...(manifest.extraBundles ?? []),
+  ]
+}
+
+/**
+ * Expected profile dependencies: every manifest plugin as a link into the ops
+ * plugins directory, plus `manifest.extraDependencies` — bare packages the
+ * PROFILE itself must resolve. The latter exists because a bundle patch can
+ * insert an official package row whose bare name resolves against the CONFIG
+ * DIRECTORY (app-boot's `boot()`), not against the install anchor; without a
+ * profile-level dependency that row fails with `failed to import`.
+ */
+function expectedDependencies(manifest) {
+  return {
+    ...Object.fromEntries(manifest.plugins.map(p => [p.name, `link:${manifest.pluginsDir}/${p.name}`])),
+    ...(manifest.extraDependencies ?? {}),
+  }
+}
+
 /** Compare the manifest against the live profile files; returns drift lines. */
 function statusReport(manifestPath) {
   const manifest = readManifest(manifestPath)
   const drift = []
+  // Non-errors the operator should still see: foreign patch blocks and foreign
+  // bundles that reapply deliberately preserves. They must NOT clear `ok`,
+  // otherwise the page reads "有漂移" forever on a healthy profile.
+  const notes = []
   const packageJsonPath = path.join(manifest.profileDir, 'package.json')
   const live = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
 
-  const expectedDeps = Object.fromEntries(manifest.plugins.map(p => [p.name, `link:${manifest.pluginsDir}/${p.name}`]))
+  const expectedDeps = expectedDependencies(manifest)
   const liveDeps = live.dependencies ?? {}
   for (const [name, target] of Object.entries(expectedDeps)) {
     if (liveDeps[name] === undefined) drift.push(`dependencies 缺少 ${name}（应为 ${target}）`)
@@ -520,10 +589,20 @@ function statusReport(manifestPath) {
     if (expectedDeps[name] === undefined) drift.push(`dependencies 多出非清单项 ${name}`)
   }
 
-  const expectedBundles = [...(manifest.officialBundles ?? []), ...manifest.plugins.map(p => p.name)]
+  // Bundles: a DECLARED bundle that is missing is real drift. A live bundle the
+  // manifest does not know is only a note — the plugin manager can install or
+  // enable one from the GUI at any time, and reapply must not silently swallow
+  // it. Removal is explicit through `removedBundles`.
+  const expectedBundles = declaredBundles(manifest)
   const liveBundles = live.dsh?.profile?.bundles ?? []
-  if (JSON.stringify(liveBundles) !== JSON.stringify(expectedBundles)) {
-    drift.push(`bundles = [${liveBundles.join(', ')}]，应为 [${expectedBundles.join(', ')}]`)
+  const declared = new Set(expectedBundles)
+  const removed = new Set(manifest.removedBundles ?? [])
+  for (const name of expectedBundles) {
+    if (!liveBundles.includes(name)) drift.push(`bundles 缺少 ${name}（清单已声明但 profile 中没有）`)
+  }
+  for (const name of liveBundles) {
+    if (removed.has(name)) drift.push(`bundles 仍含已移除项 ${name}（已列入 removedBundles）`)
+    else if (!declared.has(name)) notes.push(`bundles 存在非清单项 ${name}（保留，不计为错误，仅供知悉）`)
   }
 
   const patchText = existsSync(path.join(manifest.profileDir, 'cordis.patch.yml'))
@@ -547,10 +626,10 @@ function statusReport(manifestPath) {
     }
   }
   for (const block of blocks) {
-    if (!managed.has(block.id)) drift.push(`cordis.patch.yml 存在非托管条目 id ${block.id}（保留，不计为错误，仅供知悉）`)
+    if (!managed.has(block.id)) notes.push(`cordis.patch.yml 存在非托管条目 id ${block.id}（保留，不计为错误，仅供知悉）`)
   }
 
-  return { ok: drift.length === 0, drift, summary: `清单 ${manifest.plugins.length} 个插件 + ${managed.size} 条 patch 覆盖，profile ${manifest.profileDir}` }
+  return { ok: drift.length === 0, drift, notes, summary: `清单 ${manifest.plugins.length} 个插件 + ${managed.size} 条 patch 覆盖，profile ${manifest.profileDir}` }
 }
 
 /** Atomic full-file replace (D4): write `<file>.personal-hub-tmp`, rename over the target. */
@@ -626,10 +705,19 @@ export async function reapply(manifestPath) {
 
   const packageJsonPath = path.join(profileDir, 'package.json')
   const livePackage = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
-  livePackage.dependencies = Object.fromEntries(manifest.plugins.map(p => [p.name, `link:${manifest.pluginsDir}/${p.name}`]))
-  livePackage.dsh = { ...(livePackage.dsh ?? {}), profile: { ...(livePackage.dsh?.profile ?? {}), bundles: [...manifest.officialBundles, ...manifest.plugins.map(p => p.name)] } }
+  livePackage.dependencies = expectedDependencies(manifest)
+  // Bundles: declared order first, then every foreign bundle kept exactly as it
+  // was (minus explicit `removedBundles`). Preserving foreign entries is what
+  // keeps a GUI-installed bundle alive across a reapply.
+  const declaredList = declaredBundles(manifest)
+  const removedSet = new Set(manifest.removedBundles ?? [])
+  const liveBundles = livePackage.dsh?.profile?.bundles ?? []
+  const foreignKept = liveBundles.filter(name => !declaredList.includes(name) && !removedSet.has(name))
+  const removedNow = liveBundles.filter(name => removedSet.has(name))
+  livePackage.dsh = { ...(livePackage.dsh ?? {}), profile: { ...(livePackage.dsh?.profile ?? {}), bundles: [...declaredList, ...foreignKept] } }
   atomicWrite(packageJsonPath, JSON.stringify(livePackage, null, 2) + '\n')
-  actions.push('package.json 已按清单重写（dependencies + dsh.profile.bundles）')
+  actions.push(`package.json 已按清单重写（dependencies + dsh.profile.bundles；清单外保留 ${foreignKept.length} 项${foreignKept.length > 0 ? '：' + foreignKept.join(', ') : ''}）`)
+  if (removedNow.length > 0) actions.push(`已按 removedBundles 移除：${removedNow.join(', ')}`)
 
   const patchPath = path.join(profileDir, 'cordis.patch.yml')
   const patchText = existsSync(patchPath) ? readFileSync(patchPath, 'utf8') : ''
@@ -648,5 +736,11 @@ export async function reapply(manifestPath) {
 
   const after = statusReport(manifestPath)
   actions.push(after.ok ? '复检无漂移' : `复检仍有漂移：\n${after.drift.join('\n')}`)
+  if (after.notes.length > 0) actions.push(`提示（非漂移，reapply 已保留）：\n${after.notes.join('\n')}`)
   return { ok: after.ok, actions }
 }
+
+// Exported for offline verification. Importing this module does NOT run `apply`,
+// so a plain node script can assert the manifest-vs-live comparison without the
+// running service and without triggering a pnpm install.
+export { statusReport, validateManifest, declaredBundles }

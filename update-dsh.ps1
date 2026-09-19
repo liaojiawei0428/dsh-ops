@@ -1,4 +1,4 @@
-param(
+﻿param(
   [switch]$CheckOnly
 )
 $ErrorActionPreference = 'Stop'
@@ -7,6 +7,9 @@ $ErrorActionPreference = 'Stop'
 $ops = $PSScriptRoot
 $repo = Join-Path (Split-Path $ops -Parent) 'Deepseek_DSH'
 $log = Join-Path $ops 'dsh-update.log'
+# 用户数据根目录：尊重 DSH_HOME（隔离演练 / 多机部署不污染主环境的 ~/.dsh），
+# 与 bootstrap-personal.ps1 / watchdog-dsh.ps1 / personal-hub 的解析保持一致。
+$dshHome = if ($env:DSH_HOME -and $env:DSH_HOME.Trim() -ne '') { $env:DSH_HOME } else { Join-Path $env:USERPROFILE '.dsh' }
 . (Join-Path $ops 'lib-proxy.ps1')
 
 function Write-Both([string]$msg) {
@@ -14,10 +17,43 @@ function Write-Both([string]$msg) {
   "[$([DateTime]::Now)] $msg" | Out-File $log -Append
 }
 
-Write-Both '==== DSH 升级检查 ===='
-if (-not (Test-Path (Join-Path $repo '.git'))) {
-  Write-Both "错误: 未找到仓库 $repo"
+# node 定位链：DSH_NODE_PATH → PATH → Program Files 两处默认位。禁止写死安装
+# 路径——新机可能用 nvm/fnm/volta/scoop 或装在非默认盘，写死会让下面的
+# profile 预检/插件闸门在 $ErrorActionPreference='Stop' 下直接中止升级
+# （2026-09-19 部署审核：原第 284 行为 'C:\Program Files\nodejs\node.exe' 硬编码）。
+function Resolve-NodePath {
+  $override = $env:DSH_NODE_PATH
+  if ($override -and (Test-Path $override)) { return $override }
+  $cmd = Get-Command node -ErrorAction SilentlyContinue
+  if ($cmd -and $cmd.Source) { return $cmd.Source }
+  foreach ($pf in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
+    if (-not $pf) { continue }
+    $candidate = Join-Path $pf 'nodejs\node.exe'
+    if (Test-Path $candidate) { return $candidate }
+  }
+  return $null
+}
+
+$node = Resolve-NodePath
+if (-not $node) {
+  Write-Both '错误: 未找到 node.exe（请安装 Node.js, 或用环境变量 DSH_NODE_PATH 指向 node.exe 后重试）'
   exit 1
+}
+Write-Both "node: $node"
+
+Write-Both '==== DSH 升级检查 ===='
+# 平级官方 checkout（<root>\Deepseek_DSH）是升级链的拉取源。新机首次运行时它
+# 并不存在（bootstrap 只 clone 个人仓库与其内部副本 <root>\DSH-ops\Deepseek_DSH），
+# 缺则自动克隆，避免「升级链在新机 100% 失败」（2026-09-19 部署审核 BLOCKER）。
+if (-not (Test-Path (Join-Path $repo '.git'))) {
+  Write-Both "未找到平级官方 checkout: $repo —— 自动克隆（--depth 1）..."
+  git clone --depth 1 https://github.com/deepseek-ai/deepseek-harness.git $repo
+  if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $repo '.git'))) {
+    Write-Both "错误: 官方 checkout 自动克隆失败（网络/代理需就绪）: $repo"
+    Write-Both "处理: 手工执行 git clone --depth 1 https://github.com/deepseek-ai/deepseek-harness.git `"$repo`" 后重试"
+    exit 1
+  }
+  Write-Both "已克隆官方 checkout: $repo"
 }
 
 # 1. 本地工作区检查（.npmrc 等未跟踪文件不算脏）。
@@ -102,25 +138,25 @@ function Test-CredentialsYamlShape {
   return $null
 }
 
-$credPath = Join-Path $env:USERPROFILE '.dsh\.credentials.yaml'
+$credPath = Join-Path $dshHome '.credentials.yaml'
 if (Test-Path $credPath) {
   $shapeError = Test-CredentialsYamlShape -Path $credPath
   if ($null -ne $shapeError) {
     Write-Both "错误: $credPath $shapeError"
-    Write-Both "恢复: 从 $env:USERPROFILE\.dsh\backups\<时间戳>\ 复制最近的备份"
+    Write-Both "恢复: 从 $dshHome\backups\<时间戳>\ 复制最近的备份"
     exit 1
   }
   Write-Both '凭据文件结构 OK (支持新嵌套格式与旧扁平格式)'
 }
 
 # 1.6 备份用户配置（升级出错时可立即恢复; 含密钥, 必须留在本机, 不可提交仓库）。
-$backupDir = Join-Path $env:USERPROFILE ("\.dsh\backups\" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+$backupDir = Join-Path $dshHome ('backups\' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
 foreach ($f in @('.credentials.yaml', 'settings.yaml')) {
-  $p = Join-Path $env:USERPROFILE ".dsh\$f"
+  $p = Join-Path $dshHome $f
   if (Test-Path $p) { Copy-Item $p $backupDir }
 }
-$profPkg = Join-Path $env:USERPROFILE '.dsh\profiles\web\package.json'
+$profPkg = Join-Path $dshHome 'profiles\web\package.json'
 if (Test-Path $profPkg) { Copy-Item $profPkg $backupDir }
 Write-Both "用户配置已备份到 $backupDir"
 
@@ -257,13 +293,13 @@ Write-Both '个人副本同步完成 OK'
 $repo = Join-Path $ops 'Deepseek_DSH'
 
 # 6. 新版本号确认。
-$ver = node (Join-Path $repo 'apps\cli\lib\bin.js') --version
+$ver = & $node (Join-Path $repo 'apps\cli\lib\bin.js') --version
 Write-Both "新版本: $ver"
 
 # 6.5 profile 组合预检: profile 声明的每个 bundle 都必须能解析进组合树。
 # 背景: 曾发生过 npm 上同名旧版插件被误装, 位置形态全错。这一步在重启前
 # 就能发现 bundle 解析失败; 已链接插件指向的路径丢失也会在此暴露。
-$dump = node (Join-Path $repo 'apps\cli\lib\bin.js') --profile web --dump-config 2>&1 | Out-String
+$dump = & $node (Join-Path $repo 'apps\cli\lib\bin.js') --profile web --dump-config 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0) {
   Write-Both "错误: dump-config 失败, 中止 (旧服务不受影响): $dump"
   exit 1
@@ -281,7 +317,7 @@ Write-Both "profile 组合校验 OK ($(@($bundles).Count) 个 bundle 全部解�
 # 6.7 link 插件预检闸门: 用真实核心校验器执行每个 link 插件的注册路径。
 # 背景: 13:05 事故——插件注册期抛错 (schema 方言违规) 使进程在监听端口前
 # 崩溃, 启动器 3 次重试全部死于同一错误。此闸门在动旧服务之前拦截该类故障。
-& 'C:\Program Files\nodejs\node.exe' (Join-Path $ops 'validate-plugins.mjs') 2>&1 | ForEach-Object { Write-Both "plugins: $_" }
+& $node (Join-Path $ops 'validate-plugins.mjs') 2>&1 | ForEach-Object { Write-Both "plugins: $_" }
 if ($LASTEXITCODE -ne 0) {
   Write-Both '错误: link 插件未通过预检, 中止重启 (旧服务不受影响)'
   Write-Both '修复对应插件后重跑本脚本; 也可临时从 profile bundles 移除该插件'

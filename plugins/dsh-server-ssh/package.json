@@ -1,7 +1,7 @@
 {
   "name": "dsh-server-ssh",
   "version": "0.1.0",
-  "description": "DSH system component: server config login — configure SSH servers in the GUI, all sessions reach them through the ssh_* tools",
+  "description": "在 GUI 里配置 SSH 服务器；所有会话通过 ssh_* 工具访问远端",
   "private": true,
   "type": "module",
   "main": "index.js",

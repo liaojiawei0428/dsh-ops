@@ -4,29 +4,48 @@
 
 ## 工作方式
 
-- 共享清单：`<ops 根>/personal-hub/personal.json`（JSON，git 同步，**机器无关**）。只声明组合意图：官方基底层 bundles、自研插件列表（含 patch 注释）。**不写绝对路径**——`profileDir` 运行时派生（`$DSH_HOME` 或 `~/.dsh` + `profiles/web`），`pluginsDir` 从本插件自身所在仓库布局派生。
+- 共享清单：`<ops 根>/personal-hub/personal.json`（JSON，git 同步，**机器无关**）。只声明组合意图，字段：
+  - `officialBundles[]` — 官方基底层（`dsh-base` + `dsh-web-app`），profile 的必需基座；
+  - `plugins[]` — 自研插件（`name`，可选 `patch.config` / `patch.comment`）；
+  - `extraBundles[]` — **非基座、非自研**的功能 bundle（官方可选/实验层，如 Agent Teams 的两个包）。按声明顺序排在自研插件**之后**——bundle 顺序决定 patch 层叠顺序，改动顺序等于改动覆盖结果；
+  - `removedBundles[]` — 显式从 profile 剔除的 bundle（reapply 时移除）；
+  - `extraPatches[]` — 非插件绑定的部署覆盖。
+
+  **不写绝对路径**——`profileDir` 运行时派生（`$DSH_HOME` 或 `~/.dsh` + `profiles/web`），`pluginsDir` 从本插件自身所在仓库布局派生。
 - 本机覆盖层：同目录 `personal.local.json`（**gitignore，每台机器自建**）。放机器特定的绝对路径（如 `tool-python` 的 `pythonPath`、`pwsh-sandbox` 的 `pwshPath`）与机器特有条目。合并语义：`plugins` 按 `name`、`extraPatches` 按 `id` 深合并，覆盖值优先；文件不存在则纯用共享清单 + 派生默认值。
 - 三个模型工具：
   - `personal_hub_status` — 比对清单（合并后视图）与 profile 实况（dependencies / bundles / patch 条目），报告漂移；只读。
   - `personal_hub_validate` — 校验清单结构、插件目录在位、id 唯一、官方层与个人层无重名；只读。
-  - `personal_hub_reapply` — 备份 → 按清单重写 `package.json`（dependencies + `dsh.profile.bundles`）→ 重生成 `cordis.patch.yml` 的**托管条目**（官方/未知块逐字保留）→ profile 目录 `pnpm install` → 复检。不重启服务。
+  - `personal_hub_reapply` — 备份 → 按清单重写 `package.json`（dependencies + `dsh.profile.bundles`，**清单外 bundle 原样保留**）→ 重生成 `cordis.patch.yml` 的**托管条目**（官方/未知块逐字保留）→ profile 目录 `pnpm install` → 复检。不重启服务。
 - 托管条目 id 约定：插件 = 包名去 `dsh-` 前缀（如 `dsh-tool-python` → `tool-python`）；部署覆盖用清单里显式的 `id`。
 - 默认清单路径从插件目录推导（`<ops 根>/personal-hub/personal.json`）；可用本插件 config 的 `manifestPath` 覆盖。
 
-## 个人插件工具栏（browser half）
+## 与官方插件管理器的关系（0.1.6-alpha.2+）
 
-浏览器半在输入卡下方（官方槽位 `conversation.composer.dock`）注册**一行**宿主条目，并声明子槽位 `dsh.personal.bar`（list / session）。所有个人插件的按钮注册到该子槽位，由宿主统一横排——个人控件与官方标题行按钮彻底分离，且互不争抢空间。
+官方在 0.1.6-alpha.2 引入浏览器内的插件管理器（侧边栏 Plugins 面板 / `plugin_manager` 工具），它能直接改本 profile 的 `dsh.profile.bundles`——**和清单同层**。两者的权威边界必须分清：
 
-- **扩展方式**（任何自研插件，无需改宿主或官方代码）：
-  ```js
-  slots.inject('dsh.personal.bar', () => slots.register(
-    { name: 'dsh.personal.bar', id: '<唯一 id>', order: <数字> },
-    YourCapsule,
-  ))
-  ```
-- **排序**：官方 list 语义按 `order` **升序**（`Array.prototype.sort` 稳定，`order` 相同则保持注册顺序）。当前占用：`server-ssh` 30、`github-push` 40、`deepseek-balance` 100、`deepseek-balance-version` 101；负数可插到最前。
-- **换行**：宿主容器为 `display:flex; flex-wrap:wrap`，宽度上限与官方内容列对齐；按钮放不下时**自动换行**，不会溢出或堆叠成列。
-- **接入约定**：新插件取 `order` 时在现有区间外选值（如 10/20/110+），避免与既有条目同值（同值虽可稳定排序，但顺序取决于加载顺序，不便预测）。
+| 动作 | 归属 | 回写清单 |
+|---|---|---|
+| 声明式重建（官方升级后一键恢复个人层） | 本插件 | — |
+| 装 / 卸 / 启用单个 bundle（GUI 交互） | 官方插件管理器 | **否** |
+
+因此 reapply 的语义是**只补不删**：
+
+- 清单声明、profile 缺失 → **补齐**（记为漂移）；
+- profile 有、清单未声明 → **原样保留**，界面仅作提示，**不算漂移、不影响 `ok`**；
+- 想真正移除 → 写进 `removedBundles`，或用 `disable-plugin.mjs`（顺带摘除 link，语义更完整）。
+
+这条规则有实例支撑：2026-09-18 官方更新后，Agent Teams 的两个 bundle 被插件管理器写进 `dsh.profile.bundles`，而清单未同步——旧实现按"序列必须完全相等"判定，把它算成漂移，一次 reapply 就会**静默卸载 Agent Teams**（连带 `tool-agent-team` patch 行失去宿主）。现已把这两个包写进 `extraBundles`，并让 reapply 永不剪除清单外项。
+
+同理，`cordis.patch.yml` 里的非托管条目（如 Agent Teams 自己写的 `tool-agent-team`）一直是被逐字保留的，现在它与"非清单 bundle"共用同一套提示通道（`notes`），不再把 `ok` 拖成 false——此前设置页在健康状态下也永远显示"漂移"，属于同一处语义混淆。
+
+## 个人插件工具栏（已移交 dsh-personal-bar）
+
+输入卡下方的个人胶囊行**已移交** [`dsh-personal-bar`](../dsh-personal-bar/README.md)——声明 `dsh.personal.bar` 子槽位、渲染 `.dsph-bar` 横排容器的现在是那个插件。
+
+移出的原因：`slots.inject(slot, cb)` 在供应方缺席时会**静默跳过**消费者，既不报错也不留日志。容器原先由本插件的 browser half 顺带声明，于是本插件一旦被禁用或加载失败，Server-SSH、GitHub 推送、DeepSeek 余额三个胶囊会一起从界面消失，且无从排查。移交后本插件的故障域只剩自己的设置页。
+
+消费方插件的注册方式**完全不变**（槽位名、id、order 与排序规则都没动），扩展方式、排序与换行约定见 [`dsh-personal-bar` 的 README](../dsh-personal-bar/README.md)。
 
 ## 个人部署层设置页（browser half）
 
@@ -56,6 +75,7 @@
 - `node E:\DSH\Deepseek_DSH/apps/cli/lib/bin.js --profile web --dump-config` 出现 `id: personal-hub` 行
 - 调用 `personal_hub_status`：清单与 profile 一致时报告"无漂移"
 - 人为把一个插件从 profile `dependencies` 删除后 `personal_hub_status` 应报缺失，`personal_hub_reapply` 后恢复
+- 离线断言（不需起服务、不会触发 pnpm install）：`index.js` 导出 `statusReport` / `validateManifest` / `declaredBundles`，可直接 `import` 后对真实清单与 profile 做比对
 
 ## 官方升级后的重适配流程
 
@@ -70,3 +90,4 @@
 - `cordis.patch.yml` 解析按 `- id:` 行分块的受限形式；官方若改变该文件整体格式，托管条目仍会重生成，但非托管块保留依赖分块假设，reapply 前先看备份 diff。
 - 不自动重启 DSH 服务；reapply 完成后需显式重启使新组合生效。
 - 官方升级若引入新的 patch 默认行，`personal_hub_status` 会将其列为"非托管条目"供知悉，不会自动删除或改写。
+- **清单不是 profile 的唯一写入方**：官方插件管理器可在 GUI 里改 `dsh.profile.bundles`。reapply 只补不删，所以"把某插件从清单里删掉"**不会**让它在 profile 里消失——必须写进 `removedBundles`，或用 `disable-plugin.mjs`。

@@ -27,7 +27,8 @@ DSH 系统组件：给模型提供原生 `python` 工具，让大模型用 Pytho
 1. `DSH_PYTHON_PATH` 环境变量
 2. Windows `py -3` 启动器（装任何 CPython 即有）→ 取其真实 exe
 3. PATH 上的 `python`（**探测验证**，WindowsApps Store 存根被排除）
-4. 标准安装位下 `Python3*` 目录（每用户目录优先）
+4. 标准安装位下的 Python 目录（每用户目录优先）：`%LOCALAPPDATA%\Programs\Python\Python3xx`、
+   `%LOCALAPPDATA%\Python\pythoncore-*`（python.org per-user 新布局）、`%ProgramFiles%\Python3xx`
 
 探测用 `-c "import sys; ..."` 实测版本主号，确认真能执行且为 Python 3 才采用；
 全部失败时工具返回明确错误并给出修复指引（装 Python 3 / 设 DSH_PYTHON_PATH / 配置 pythonPath）。

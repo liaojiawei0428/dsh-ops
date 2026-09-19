@@ -1,4 +1,4 @@
-param(
+﻿param(
   # 彻底重启模式：先强制停止当前监听 3080 的服务（若有）并等待端口释放，
   # 再走完整启动流程。默认（不带此开关）保持幂等语义：已在运行则直接打开
   # 浏览器退出（update-dsh.ps1 等调用方依赖该语义）。
@@ -19,6 +19,19 @@ $me = $PID
 function Write-Both([string]$msg) {
   Write-Host $msg
   "[$([DateTime]::Now)] $msg" | Out-File $log -Append
+}
+
+# 从 dsh-web.log 取 dsh web 打印的带 token 地址。裸地址 http://127.0.0.1:3080
+# 一定被认证拦下（401 "reopen the URL printed by dsh web"），只有带 token 的
+# 那个地址能直接进界面。该日志每次启动由 -RedirectStandardOutput 重写覆盖，
+# 所以最后一条匹配就是当前监听进程的地址。
+function Get-AuthenticatedUrl {
+  $webLog = Join-Path $ops 'dsh-web.log'
+  if (-not (Test-Path $webLog)) { return $null }
+  $hit = Select-String -Path $webLog -Pattern '^dsh web: (http://\S+)$' -ErrorAction SilentlyContinue |
+    Select-Object -Last 1
+  if ($null -eq $hit -or $hit.Matches.Count -eq 0) { return $null }
+  return $hit.Matches[0].Groups[1].Value
 }
 
 # 启动兜底的定位器：从 dsh-web.err.log 尾部提取肇事插件名。三种现场——
@@ -68,6 +81,29 @@ function Resolve-PwshPath {
   return 'pwsh'
 }
 
+# 解析 node 实际路径（新机可能用 nvm/fnm/volta/scoop，或装在非默认盘）：
+# DSH_NODE_PATH → PATH → Program Files 两处默认位。与 watchdog-dsh.ps1:173-174
+# 同纪律，禁止写死安装路径——写死会让预检闸门与服务本体在新机直接失败
+# （2026-09-19 部署审核：原为 'C:\Program Files\nodejs\node.exe' 硬编码 3 处）。
+function Resolve-NodePath {
+  $override = $env:DSH_NODE_PATH
+  if ($override -and (Test-Path $override)) { return $override }
+  $cmd = Get-Command node -ErrorAction SilentlyContinue
+  if ($cmd -and $cmd.Source) { return $cmd.Source }
+  foreach ($pf in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) {
+    if (-not $pf) { continue }
+    $candidate = Join-Path $pf 'nodejs\node.exe'
+    if (Test-Path $candidate) { return $candidate }
+  }
+  return $null
+}
+
+$node = Resolve-NodePath
+if (-not $node) {
+  Write-Both '启动中止: 未找到 node.exe。请安装 Node.js（^22.19 或 >=24）并确保其在 PATH, 或用环境变量 DSH_NODE_PATH 指向 node.exe'
+  exit 1
+}
+
 # G5 运行期看门狗：启动器退出后继续守护服务——运行期任意延迟崩溃（端口
 # 就绪后才发生，G3/存活复核均已退场）由看门狗接管：定位肇事插件 → 自动
 # 隔离 → WMI 拉起完整启动链。WMI 独立进程不受 Job 对象管辖；看门狗自带
@@ -111,7 +147,7 @@ if ($others) {
 # link 插件预检闸门（必须先于任何停止动作）：注册期抛错的插件会让每次启动
 # 尝试在监听端口前崩溃（13:05 事故：3 次重试死于同一错误）。放在 -Restart
 # 杀旧服务之前，闸门红 = 直接中止、旧服务零影响，而不是停机后再失败。
-& 'C:\Program Files\nodejs\node.exe' (Join-Path $ops 'validate-plugins.mjs') 2>&1 | ForEach-Object { Write-Both "plugins: $_" }
+& $node (Join-Path $ops 'validate-plugins.mjs') 2>&1 | ForEach-Object { Write-Both "plugins: $_" }
 if ($LASTEXITCODE -ne 0) {
   Write-Both '启动中止: link 插件未通过预检 (见上方 plugins: 行); 修复插件后重试'
   exit 1
@@ -146,7 +182,11 @@ if ($existing) {
   Write-Both "DSH 服务已在运行 (pid $($existing[0].OwningProcess))"
   "$($existing[0].OwningProcess)" | Out-File (Join-Path $ops 'dsh-web.pid')
   Ensure-Watchdog
-  Start-Process 'http://127.0.0.1:3080'
+  # 这条路径不启动 dsh web，它也就不会自己开浏览器，由脚本代开；必须用日志中
+  # 带 token 的地址，裸地址会停在认证失败页（401）。
+  $url = Get-AuthenticatedUrl
+  if (-not $url) { $url = 'http://127.0.0.1:3080' }
+  Start-Process $url
   Start-Sleep -Seconds 2
   exit 0
 }
@@ -159,8 +199,12 @@ Write-Both '正在启动 DSH 服务，请稍候...'
 $isolationUsed = $false
 :boot while ($true) {
   for ($attempt = 1; $attempt -le 3; $attempt++) {
-  $p = Start-Process -FilePath 'C:\Program Files\nodejs\node.exe' `
-    -ArgumentList 'apps/cli/lib/bin.js', 'web' `
+  # --no-open: 页面统一由本脚本开一次（见启动成功分支）。dsh web 自带的浏览器
+  # 交接同样默认开启，两个来源各开一次就是「重启弹两个页面」的根因；收敛成单一
+  # 来源后无论重启多少次都只开一个。--no-open 不影响 printUrl（web-app 的 Config
+  # 里 printUrl 默认 true），dsh-web.log 仍会写下带 token 的地址供脚本取用。
+  $p = Start-Process -FilePath $node `
+    -ArgumentList 'apps/cli/lib/bin.js', 'web', '--no-open' `
     -WorkingDirectory $repo `
     -WindowStyle Hidden `
     -RedirectStandardOutput (Join-Path $ops 'dsh-web.log') `
@@ -187,7 +231,22 @@ $isolationUsed = $false
     if ($alive) {
       "$($alive[0].OwningProcess)" | Out-File (Join-Path $ops 'dsh-web.pid')
       Ensure-Watchdog
-      Start-Process 'http://127.0.0.1:3080'
+      # 页面由本脚本开，且只开一次（dsh web 已用 --no-open 关掉它自己的主动交接）。
+      # 地址要等 dsh web 打印：announceReady() 在 connection 服务就绪后才写日志，
+      # 晚于端口开始监听（本脚本判就绪的依据），所以这里短暂轮询；拿不到才回落裸
+      # 地址兜底（裸地址会被认证拦下，需手动补 token）。
+      $url = $null
+      $urlDeadline = (Get-Date).AddSeconds(10)
+      while ((Get-Date) -lt $urlDeadline) {
+        $url = Get-AuthenticatedUrl
+        if ($url) { break }
+        Start-Sleep -Milliseconds 300
+      }
+      if (-not $url) {
+        $url = 'http://127.0.0.1:3080'
+        Write-Both '未从 dsh-web.log 取到带 token 的地址, 回落裸地址打开 (可能需手动补 token)'
+      }
+      Start-Process $url
       Start-Sleep -Seconds 2
       exit 0
     }
@@ -203,7 +262,7 @@ $isolationUsed = $false
     if ($broken) {
       $isolationUsed = $true
       Write-Both "启动兜底: 定位到肇事插件 $broken, 自动移出 bundles (文件与 link 保留) 并重试启动"
-      & 'C:\Program Files\nodejs\node.exe' (Join-Path $ops 'disable-plugin.mjs') $broken 2>&1 | ForEach-Object { Write-Both "isolate: $_" }
+      & $node (Join-Path $ops 'disable-plugin.mjs') $broken 2>&1 | ForEach-Object { Write-Both "isolate: $_" }
       if ($LASTEXITCODE -eq 0) { continue :boot }
       Write-Both "启动兜底: 隔离 $broken 失败 (exit $LASTEXITCODE), 请人工排查"
     } else {

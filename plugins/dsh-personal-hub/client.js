@@ -1,17 +1,15 @@
 /**
- * dsh-personal-hub — browser half (personal plugin toolbar host).
+ * dsh-personal-hub — browser half (personal-layer settings page).
  *
- * Owns ONE row below the composer card (`conversation.composer.dock`) and
- * declares the additive child slot `dsh.personal.bar`. Every personal plugin
- * registers its own capsule into that child slot, so all personal controls
- * share a single horizontal, wrapping row — space grows with the row instead
- * of competing with the shipped header buttons.
+ * Owns ONE page inside the official Plugins settings section
+ * (`settings.plugins.tab`): manifest drift status, one-click reapply, and the
+ * raw action log.
  *
- * Why a host row: an official list slot renders its entries as direct flex
- * children of the owning container, so several independent registrations
- * stack vertically. This host registers once and lays the child entries out
- * itself with `display:flex; flex-wrap:wrap`, keeping one row that wraps only
- * when the viewport truly runs out of width.
+ * The capsule row below the composer card used to live here as well. It moved
+ * to `dsh-personal-bar`, because `slots.inject` silently skips a consumer
+ * whose supplier is absent: this plugin's faults were removing three unrelated
+ * capsules (server-ssh, github-push, deepseek-balance) from the composer with
+ * nothing in the log to explain it. See that plugin's README for the contract.
  *
  * This file is a hand-written client bundle in the platform's module-loader
  * format: `window.__ModuleLoader__.load({ id, factory })`, with the factory's
@@ -29,14 +27,7 @@ window.__ModuleLoader__.load({
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
     const React = require('react')
 
-    /** Official slot that hosts the row below the composer card. */
-    const HOST_SLOT = 'conversation.composer.dock'
-    /** Additive child slot every personal plugin registers into. */
-    const BAR_SLOT = 'dsh.personal.bar'
-
     const CSS = [
-      '.dsph-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; width: 100%; max-width: var(--dsh-chat-content-width, 100%); margin: 0 auto; padding: 4px calc(var(--dsh-composer-side-clearance, 16px) + 16px) 0; box-sizing: border-box; }',
-      '.dsph-bar:empty { display: none; }',
       '.dsph-page { display: flex; flex-direction: column; gap: 16px; max-width: 720px; }',
       '.dsph-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }',
       '.dsph-title { margin: 0; font-size: 14px; font-weight: 600; color: var(--dsw-alias-label-primary, #0f1115); }',
@@ -65,20 +56,6 @@ window.__ModuleLoader__.load({
     const RPC_CHANNEL = '/dsh-personal-hub'
     /** Official settings slot hosting one page inside the Plugins section. */
     const SETTINGS_TAB = 'settings.plugins.tab'
-
-    /**
-     * One horizontal row for every personal-plugin capsule. `renderSlot` is
-     * the standard render share granted by declaring the child slot.
-     * @param props - standard slot props (renderSlot face).
-     * @returns the row element.
-     */
-    function PersonalBar(props) {
-      return React.createElement(
-        'div',
-        { className: 'dsph-bar' },
-        props.renderSlot(BAR_SLOT, {}),
-      )
-    }
 
     /**
      * Personal-layer management page: manifest drift status, one-click
@@ -147,6 +124,12 @@ window.__ModuleLoader__.load({
           children.push(React.createElement('ul', { className: 'dsph-list', key: 'drift' },
             v.drift.map((item, i) => React.createElement('li', { key: i }, String(item)))))
         }
+        // 提示项（非漂移）：清单外 bundle、非托管 patch 条目。reapply 会原样保留它们
+        // ——新版插件管理器允许在 GUI 里装/启用 bundle，重建不得静默吞掉。
+        if (Array.isArray(v.notes) && v.notes.length > 0) {
+          children.push(React.createElement('ul', { className: 'dsph-list', key: 'notes' },
+            v.notes.map((item, i) => React.createElement('li', { key: i }, String(item)))))
+        }
         // 清单插件列表（status 端点附加返回）
         const pluginRows = []
         if (Array.isArray(v.plugins) && v.plugins.length > 0) {
@@ -208,7 +191,7 @@ window.__ModuleLoader__.load({
       }
     }
 
-    /** Browser-half entry: register the toolbar row and the settings page. */
+    /** Browser-half entry: register the settings page. */
     function apply(ctx) {
       const slots = ctx.get('slots')
       if (slots === undefined) {
@@ -223,13 +206,6 @@ window.__ModuleLoader__.load({
       ctx.effect(() => () => { tag.remove() }, 'dsh-personal-hub: styles')
 
       const call = makeCall(ctx)
-
-      slots.inject(HOST_SLOT, () => slots.register({
-        name: HOST_SLOT,
-        id: 'personal-bar',
-        order: 50,
-        children: { [BAR_SLOT]: { kind: 'list', scope: 'session' } },
-      }, PersonalBar))
 
       slots.inject(SETTINGS_TAB, () => slots.register({
         name: SETTINGS_TAB,

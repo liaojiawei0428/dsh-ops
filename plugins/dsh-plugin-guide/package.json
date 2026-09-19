@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-guide",
   "version": "0.1.0",
-  "description": "DSH system component: Chinese plugin guide tab in the Plugins settings section",
+  "description": "「设置 → 插件」中的中文插件开发指南标签页",
   "private": true,
   "type": "module",
   "main": "index.js",

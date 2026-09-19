@@ -24,6 +24,7 @@ import csv
 import datetime
 import io
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -32,7 +33,11 @@ from pathlib import Path
 
 OPS = Path(__file__).resolve().parent
 PORT = 3080
-PROF_PKG = Path.home() / ".dsh" / "profiles" / "web" / "package.json"
+# 用户数据根目录尊重 DSH_HOME（隔离演练 / 多机部署），与 bootstrap-personal.ps1、
+# watchdog-dsh.ps1、personal-hub、validate-plugins.mjs 的解析保持一致。
+DSH_HOME = Path(os.environ["DSH_HOME"]) if os.environ.get("DSH_HOME", "").strip() else Path.home() / ".dsh"
+PROF_PKG = DSH_HOME / "profiles" / "web" / "package.json"
+OVERLAY_CFG = OPS / "personal-hub" / "personal.local.json"
 OFFICIAL_PREFIX = "@deepseek-ai/"
 
 issues: list[str] = []
@@ -214,12 +219,41 @@ if PROF_PKG.exists():
 else:
     fail(f"profile package.json 不存在: {PROF_PKG}")
 
+# 5b. 机器覆盖层结构自检（personal.local.json 必须是 JSON 对象）
+# 背景: bootstrap-personal.ps1 曾对同一哈希表连续调用两次 ConvertTo-Json, 落盘成
+# 「JSON 字符串字面量」→ reapply 的 typeof === 'object' 守卫不成立, 整层覆盖被
+# 静默忽略（pwsh-sandbox / tool-python 块全丢, 而 reapply 仍报「复检无漂移」）。
+# 这条断言让同类回归当场变红（2026-09-19 部署审核）。
+section("机器覆盖层")
+if not OVERLAY_CFG.exists():
+    print(f"  (未生成: {OVERLAY_CFG} — 新机首次 bootstrap 时创建; 跳过)")
+else:
+    try:
+        overlay = json.loads(OVERLAY_CFG.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001 — 体检不抛异常, 只记异常项
+        fail(f"personal.local.json 无法解析为 JSON: {exc}")
+    else:
+        if isinstance(overlay, dict):
+            n_patch = len(overlay.get("extraPatches") or [])
+            n_dep = len(overlay.get("extraDependencies") or {})
+            n_plug = len(overlay.get("plugins") or [])
+            ok(f"结构正常（extraPatches {n_patch} · extraDependencies {n_dep} · plugins 覆盖 {n_plug}）")
+        else:
+            fail(
+                f"personal.local.json 顶层是 {type(overlay).__name__} 而不是 object"
+                " —— 覆盖层会被整层静默忽略（典型原因: 对同一对象连续两次 ConvertTo-Json）"
+            )
+
 # 6. 闸门 + 回归
 if "--quick" in sys.argv:
     section("闸门/回归")
     print("  (--quick 跳过)")
 else:
-    for script, label in (("validate-plugins.mjs", "闸门"), ("test-standard.mjs", "回归")):
+    for script, label in (
+        ("validate-plugins.mjs", "闸门"),
+        ("test-standard.mjs", "回归"),
+        ("check-plugin-copy.mjs", "插件中文文案"),
+    ):
         section(label)
         r = run(["node", script], cwd=OPS, timeout=120)
         last = (r.stdout.strip().splitlines() or ["(无输出)"])[-1]

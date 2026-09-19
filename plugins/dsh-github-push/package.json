@@ -1,7 +1,7 @@
 {
   "name": "dsh-github-push",
   "version": "0.1.0",
-  "description": "DSH system component: bind local project directories to GitHub repositories and push on demand",
+  "description": "把本地项目目录绑定到 GitHub 仓库，按需一键推送",
   "private": true,
   "type": "module",
   "main": "index.js",

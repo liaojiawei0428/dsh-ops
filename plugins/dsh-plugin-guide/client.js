@@ -185,12 +185,63 @@ window.__ModuleLoader__.load({
       'ui-user-questions': ['提问界面', '用户提问卡片'],
       'ui-trajectory': ['执行轨迹', '执行轨迹展示'],
       // ---- 个人插件 ----
-      'locale-language': ['界面语言', '通用设置里的界面语言切换行（个人插件）'],
-      'deepseek-balance': ['余额胶囊', '会话头部显示 DeepSeek 账户余额与版本胶囊（个人插件）'],
+      'locale-language': ['界面语言', '注入全局提示词指令，让思维链与回复跟随界面语言（个人插件）'],
+      'deepseek-balance': ['余额胶囊', '作曲器下方的个人胶囊行显示 DeepSeek 余额与 DSH 版本两个胶囊（个人插件）'],
       'tool-python': ['Python 工具', '模型可调用的 Python 代码执行（个人插件）'],
       'bug-log': ['BUG 知识库', '持久化 bug 记录的检索与记录工具（个人插件）'],
       'personal-hub': ['个人配置器', '个人插件层的声明式清单管理与漂移修复（个人插件）'],
-      'plugin-guide': ['插件说明', '本插件：在插件清单卡片里注入中文说明（个人插件）'],
+      'plugin-guide': ['插件说明', '本插件：「设置 → 插件」里可搜索的中文插件说明清单（个人插件）'],
+    }
+
+    /**
+     * Bundle-level Chinese display copy, keyed by the EXACT package name — not
+     * the normalized short name GUIDE uses, because this table is consumed by
+     * the official plugin manager, which looks packages up by npm name.
+     * Each value is [中文名, 卡片说明].
+     *
+     * The official manager clamps the description to ONE line
+     * (ui-plugin-manager's `.cardDesc` carries `-webkit-line-clamp: 1`), and the
+     * same string also fills the detail page, so keep the second element short.
+     *
+     * Published on `globalThis` for the patched official `packageText()`; see
+     * official-patches/apply-patches.mjs (targets
+     * `client/ui-plugin-manager/src/client/presentation.ts`). Two packages are
+     * deliberately absent: the Agent Teams pair already ships official localized
+     * copy, and the patch consults `BUILTIN_COPY` before this table.
+     */
+    const BUNDLE_COPY = {
+      // ---- 官方 ----
+      '@deepseek-ai/dsh-base': ['DSH 核心基座', '所有 dsh profile 共享的核心：模型、工具、持久会话与安全默认值'],
+      '@deepseek-ai/dsh-web-app': ['Web 界面基座', 'dsh 的浏览器 GUI：聊天、模型与设置管理、会话历史'],
+      '@deepseek-ai/dsh-acp-app': ['ACP 自动化应用', '纯自动化 ACP stdio 应用 profile，用于启动持久智能体'],
+      '@deepseek-ai/dsh-headless': ['一次性任务模式', '命令行跑单个任务并打印最终答案后退出'],
+      '@deepseek-ai/dsh-sdk-app': ['SDK 应用', 'SDK stdio 应用 profile：JSON-RPC 服务与进程生命周期'],
+      '@deepseek-ai/dsh-sdk-minimal': ['极简 SDK', '独立极简 SDK profile：JSON-RPC 与 JSONL 会话'],
+      // ---- 个人插件 ----
+      'dsh-locale-language': ['界面语言', '全局提示词指令：思维链与回复跟随界面语言'],
+      'dsh-deepseek-balance': ['余额胶囊', '作曲器下方个人胶囊行的余额与 DSH 版本两个胶囊'],
+      'dsh-tool-python': ['Python 工具', '面向模型的 Python 3 执行工具（默认计算入口）'],
+      'dsh-bug-log': ['BUG 知识库', '持久化 BUG 知识库：记录与检索，排查前自动召回'],
+      'dsh-personal-hub': ['个人配置器', '个人部署层：按声明式清单重建 profile 依赖与 bundles'],
+      'dsh-personal-bar': ['个人胶囊行', '作曲器下方的个人插件胶囊行容器，支持自动换行扩展'],
+      'dsh-plugin-guide': ['插件说明', '「设置 → 插件」里可搜索的中文插件说明清单'],
+      'dsh-restart-resume': ['重启续聊', '重启 DSH 服务后自动向原会话续发继续消息'],
+      'dsh-server-ssh': ['SSH 服务器', '在 GUI 里配置 SSH 主机，会话经 ssh_* 工具访问'],
+      'dsh-github-push': ['GitHub 推送', '把本地目录绑定到 GitHub 仓库，手动一键推送'],
+      'dsh-computer-use': ['计算机操作', '挂载官方计算机操作（Computer Use）能力'],
+    }
+
+    /**
+     * Publish {@link BUNDLE_COPY} in the shape the patched official manager
+     * reads: `{ [packageName]: { title, description } }`. The manager tolerates
+     * an absent or malformed table, so this is additive only.
+     */
+    function publishBundleCopy() {
+      const table = {}
+      for (const [name, entry] of Object.entries(BUNDLE_COPY)) {
+        table[name] = { title: entry[0], description: entry[1] }
+      }
+      globalThis.__DSH_PLUGIN_COPY__ = table
     }
 
     /** Official settings slot hosting one page inside the Plugins section. */
@@ -252,8 +303,14 @@ window.__ModuleLoader__.load({
       )
     }
 
-    /** Browser-half entry: register the Chinese reference page. */
+    /** Browser-half entry: publish the bundle copy, then register the reference page. */
     function apply(ctx) {
+      // Published ahead of the slots check: this table serves the official
+      // manager's cards, not this page, so a missing slots service must not
+      // take it down with the page.
+      publishBundleCopy()
+      ctx.effect(() => () => { delete globalThis.__DSH_PLUGIN_COPY__ }, 'dsh-plugin-guide: bundle copy table')
+
       const slots = ctx.get('slots')
       if (slots === undefined) {
         console.warn('[dsh-plugin-guide] slots service unavailable despite inject declaration; page not registered')

@@ -41,7 +41,16 @@ if (-not (Test-Path (Join-Path $copy 'package.json'))) { throw "个人副本缺�
 
 # ---------- 1. 官方源码 → 副本增量同步（-ApplyPatchesOnly 时跳过） ----------
 if (-not $ApplyPatchesOnly) {
-  if (-not (Test-Path (Join-Path $official '.git'))) { throw "官方仓库缺失: $official" }
+  if (-not (Test-Path (Join-Path $official '.git'))) {
+    # 新机首次同步时平级官方 checkout 可能不存在（bootstrap 只 clone 个人仓库与
+    # 其内部副本）：自动克隆，与 update-dsh.ps1 的兜底保持一致（2026-09-19 审核）。
+    Write-Host "平级官方 checkout 缺失: $official —— 自动克隆（--depth 1）..."
+    git clone --depth 1 https://github.com/deepseek-ai/deepseek-harness.git $official
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $official '.git'))) {
+      throw "官方仓库缺失且自动克隆失败: $official（先确认网络/代理, 或手工 git clone --depth 1 https://github.com/deepseek-ai/deepseek-harness.git <该路径>）"
+    }
+    Write-Host "已克隆官方 checkout: $official"
+  }
   Write-Host "同步官方源码 → 个人副本`n  官方: $official`n  副本: $copy"
   $excludeDirs = @('.git', 'node_modules', '.artifacts', '.dsh-build', '__pycache__', '.tmp-inspect')
   $dirArgs = @(); foreach ($d in $excludeDirs) { $dirArgs += @('/XD', $d) }

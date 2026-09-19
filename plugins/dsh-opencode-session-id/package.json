@@ -1,7 +1,7 @@
 {
   "name": "dsh-opencode-session-id",
   "version": "0.1.0",
-  "description": "DSH system component: dsh-opencode-session-id",
+  "description": "（已弃用）为 opencode 路由注入 x-opencode-session 请求头，现由 harness 适配层的 harnessSessionHeader 取代",
   "private": true,
   "type": "module",
   "main": "index.js",

@@ -2,7 +2,7 @@
  * dsh-deepseek-balance — browser half (client bundle).
  *
  * Registers the balance capsule into the personal plugin toolbar row
- * (`dsh.personal.bar`, the wrapping row hosted by dsh-personal-hub below the
+ * (`dsh.personal.bar`, the wrapping row hosted by dsh-personal-bar below the
  * composer card, separate from the shipped header buttons) and fetches the
  * Host route `/api/dsh/deepseek-balance` for the balance data.
  *

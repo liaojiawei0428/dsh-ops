@@ -1,7 +1,7 @@
 {
   "name": "dsh-locale-language",
   "version": "0.1.0",
-  "description": "Global DSH prompt instruction that follows the DSH UI locale (zh/en) for chain-of-thought and replies",
+  "description": "全局提示词指令：思维链与回复跟随 DSH 界面语言（中/英）",
   "private": true,
   "type": "module",
   "main": "index.js",

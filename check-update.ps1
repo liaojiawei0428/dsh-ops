@@ -6,6 +6,17 @@ $ops = $PSScriptRoot
 $repo = Join-Path (Split-Path $ops -Parent) 'Deepseek_DSH'
 . (Join-Path $ops 'lib-proxy.ps1')
 
+# 0. 平级官方 checkout 存在性（新机首次运行时尚不存在）：必须先判，否则
+#    git fetch 失败会被下面误报成「VPN 节点失效」，而真正原因是目录缺失
+#    （2026-09-19 部署审核：新机每次启动都会看到这条误导信息）。
+if (-not (Test-Path (Join-Path $repo '.git'))) {
+  Write-Host '[更新检查] 平级官方 checkout 不存在, 已跳过检查 (不影响启动)' -ForegroundColor DarkGray
+  Write-Host "[更新检查] 期望路径: $repo（升级链的拉取源）" -ForegroundColor DarkGray
+  Write-Host '[更新检查] 运行一次「更新DSH.bat」会自动克隆它, 或手工:' -ForegroundColor DarkGray
+  Write-Host "           git clone --depth 1 https://github.com/deepseek-ai/deepseek-harness.git `"$repo`"" -ForegroundColor DarkGray
+  exit 0
+}
+
 # 1. 代理诊断（本地问题在这里被明确拦截并提示）。
 $proxy = Get-SystemProxy
 if (-not (Set-ProxyEnvironment $proxy)) {

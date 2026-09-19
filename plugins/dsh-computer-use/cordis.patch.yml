@@ -1,0 +1,18 @@
+# dsh-computer-use bundle patch — mounts the official computer-use service plus
+# the Cua Driver native provider.
+#
+# This package ships no runtime behaviour of its own: it exists so the pair can
+# be enabled through the personal-hub manifest. A manifest patch entry can only
+# target an EXISTING row id, and no shipped bundle mounts these experimental
+# rows (they are opt-in by design), so the enable step must be an insert — which
+# only a bundle patch can express.
+#
+# ONLY ONE computer-use provider may register per composition: a second
+# registration fails activation. To switch to the installed-CLI provider,
+# replace the second row (name '@deepseek-ai/dsh-experimental-computer-use-cua-driver-mcp'
+# with config { command: cua-driver, args: [mcp] }) instead of adding a third.
+- insert:
+    - id: computer-use
+      name: '@deepseek-ai/dsh-computer-use'
+    - id: computer-use-cua-driver-native
+      name: '@deepseek-ai/dsh-experimental-computer-use-cua-driver-native'

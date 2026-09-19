@@ -44,6 +44,7 @@
 - 对象节点声明 `additionalProperties: false`；字面量用 `const`。
 - 工具 `parameters` 用 `defineTool` 属性式写法时（注册表会提升为必填列表）不受此限，但**裸 `ctx.tools.register` 的 parameters 必须已是本方言**。
 - 写完必须过闸门（真实核心校验器），不靠肉眼。
+- **改了工具返回形状，必须四处同改**：`execute` 的返回值、`output.schema.properties`、`output.schema.required`、`output.render`；有 `catch` 兜底返回的分支要一起改。工具输出是 `additionalProperties: false` 的**强校验**——返回体多一个未声明字段会让整次调用直接失败（`"value.X" is not a declared property (additionalProperties: false)`）。闸门只校验 output schema 的**方言**（G1/G2），**不校验它与实现形状是否一致**，所以这类错误闸门全绿也会在真实调用时才炸（2026-09-18 `personal_hub_status` 新增 `notes` 字段的事故，buglog 关键词 `personal-hub-output-schema`）。
 
 **P5 注册即效果**
 - 一切注册（tools、路由、系统提示段、事件、定时器）必须包在 `ctx.effect(() => disposer)` 中，保证插件摘除/禁用时全部副作用可回收。
@@ -199,6 +200,7 @@ R4  紧急逃生（插件一时修不好，DSH 必须立即可用）：
 [ ] package.json: private + type:module + exports + dsh.bundle.patch
 [ ] index.js: 零 @deepseek-ai/* import；inject 最小；注册全包 ctx.effect
 [ ] schema: required 全在父对象数组；属性内无 required；oneOf 旁无 required
+[ ] 若改了工具返回形状：output.schema.properties/required 与 render 已同步、catch 分支同改（否则真实调用失败，闸门查不出）
 [ ] .ps1 若有改动：语法 OK + BOM 在位 + 无 powershell.exe
 [ ] 用户数据文件：已备份；整体原子写入
 [ ] 若做过演练：插件目录已删、link 已摘、闸门恢复全绿（G4）

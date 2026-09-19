@@ -1,0 +1,22 @@
+{
+ "readme-en-table": {
+  "file": "llm/llm-pi-ai/README.md",
+  "old": "| `baseURL` | catalog endpoint | Endpoint of every model on the route |\n| `models` | installed catalog | Replaces the route's catalog wholesale; each entry defaults from the installed model |",
+  "new": "| `baseURL` | catalog endpoint | Endpoint of every model on the route |\n| `harnessSessionHeader` | off | Sends `x-deepseek-harness-session-id` carrying the conversation id on this route's model requests; a gateway that routes per conversation requires it (opencode.ai answers HTTP 400 `MissingSessionID` without one) |\n| `models` | installed catalog | Replaces the route's catalog wholesale; each entry defaults from the installed model |"
+ },
+ "readme-en-para": {
+  "file": "llm/llm-pi-ai/README.md",
+  "old": "Each profile may set a `retryPolicy`; omission uses normal mode with five retries. `apiKeyEnv` is a credential reference resolved per request through the harness credential seam, so no secret enters the configuration file; a reference that resolves to nothing fails the request with `MISSING_CREDENTIAL`. Omitting it leaves the route configured-but-keyless, which for an installed catalog route defers to pi-ai's provider-native ambient discovery.",
+  "new": "Each profile may set a `retryPolicy`; omission uses normal mode with five retries. `apiKeyEnv` is a credential reference resolved per request through the harness credential seam, so no secret enters the configuration file; a reference that resolves to nothing fails the request with `MISSING_CREDENTIAL`. Omitting it leaves the route configured-but-keyless, which for an installed catalog route defers to pi-ai's provider-native ambient discovery.\n\n`harnessSessionHeader` defaults to off because the header names one conversation: a route carries that identity only where the deployment decides its gateway is entitled to it. Enable it for a gateway that routes and prompt-caches per conversation — opencode.ai has required a session header since 2026-09-05 and answers a request without one with HTTP 400 `MissingSessionID`, which makes every model on that gateway unreachable. The value is `GenerateOptions.sessionId`, so a route with the switch on still sends nothing when the caller names no session, and a deployment entry in `headers` under the same name is overridden rather than trusted."
+ },
+ "readme-zh-table": {
+  "file": "llm/llm-pi-ai/README.zh.md",
+  "old": "| `baseURL` | 目录端点 | 路由上所有模型的端点 |\n| `models` | 已安装目录 | 整体替换路由目录；每个条目从已安装模型取默认值 |",
+  "new": "| `baseURL` | 目录端点 | 路由上所有模型的端点 |\n| `harnessSessionHeader` | 关闭 | 在该路由的模型请求上发送携带对话 id 的 `x-deepseek-harness-session-id`；按对话路由的网关要求它（opencode.ai 缺少时返回 HTTP 400 `MissingSessionID`） |\n| `models` | 已安装目录 | 整体替换路由目录；每个条目从已安装模型取默认值 |"
+ },
+ "readme-zh-para": {
+  "file": "llm/llm-pi-ai/README.zh.md",
+  "old": "每个 profile 都可以设置 `retryPolicy`；省略时使用 normal mode、最多重试五次。`apiKeyEnv` 是按请求经 harness 凭据 seam 解析的凭据引用，因此配置文件绝不包含密钥；解析为空的引用会让请求以 `MISSING_CREDENTIAL` 失败。省略它会让路由保持已配置但无密钥（configured-but-keyless）状态，对已安装目录路由而言即交由 pi-ai 提供方原生的环境发现。",
+  "new": "每个 profile 都可以设置 `retryPolicy`；省略时使用 normal mode、最多重试五次。`apiKeyEnv` 是按请求经 harness 凭据 seam 解析的凭据引用，因此配置文件绝不包含密钥；解析为空的引用会让请求以 `MISSING_CREDENTIAL` 失败。省略它会让路由保持已配置但无密钥（configured-but-keyless）状态，对已安装目录路由而言即交由 pi-ai 提供方原生的环境发现。\n\n`harnessSessionHeader` 默认关闭，因为该标头点名的是一个对话：只有部署判定其网关有权获知该身份的路由才携带它。为按对话路由并做提示缓存的网关开启它——opencode.ai 自 2026-09-05 起要求会话标头，缺失时返回 HTTP 400 `MissingSessionID`，使该网关上所有模型不可达。其取值来自 `GenerateOptions.sessionId`，因此即便开关打开，调用方未点名会话时路由仍不发送任何内容；`headers` 中同名的部署条目会被覆盖而非采信。"
+ }
+}
