@@ -162,8 +162,18 @@ bootstrap 已重建 `profiles\web\`。这一步要区分**两个完全不同的�
 
 | # | 文件 | 承载的功能 | 新机怎么来 |
 |---|---|---|---|
-| 1 | `settings.yaml` | **全部 provider 网关与模型目录**（开发机 7 个：`opencode-live` / `opencode-live-anthropic` / `opencode-live-responses` / `opencode` / `agnes` / `bai` / `unlimitds`，含 baseURL、`api` 协议、`harnessSessionHeader`、每模型 contextWindow/maxTokens/compat）、`agent-default-model`（`opencode-live/deepseek-v4.1-flash` + `max`）、`subagent-model-selection`（团队/子代理授权清单）、`permission.defaultPreset`、`agent-presets`、`shell.timeoutMs`、`ui-conversation`、`llm-deepseek` 模型目录 | **必须从旧机复制**。仓库 `config\settings.yaml` 只是 7 段骨架（且**不含** `opencode-live` 这类路由），照它配出来的**不是**同一套 DSH |
-| 2 | `AGENTS.md` | 全局指令底座（工具分工纪律、子代理强弱档策略、DSH 服务纪律…） | 从旧机复制 `~/.dsh/AGENTS.md`；或复制仓库 `config\AGENTS-global-template.md` 后按本机路径改写 |
+| 1 | `settings.yaml` | **全部 provider 网关与模型目录**（开发机 7 个：`opencode-live` / `opencode-live-anthropic` / `opencode-live-responses` / `opencode` / `agnes` / `bai` / `unlimitds`，含 baseURL、`api` 协议、`harnessSessionHeader`、每模型 contextWindow/maxTokens/compat）、`agent-default-model`（`opencode-live/deepseek-v4.1-flash` + `max`）、`subagent-model-selection`（团队/子代理授权清单）、`permission.defaultPreset`、`agent-presets`、`shell.timeoutMs`、`ui-conversation`、`llm-deepseek` 模型目录覆盖 | **必须从旧机复制**。仓库 `config\settings.yaml` 只是 7 段骨架（且**不含** `opencode-live` 这类路由），照它配出来的**不是**同一套 DSH |
+| 2 | `AGENTS.md` | 全局指令底座（工具分工纪律、子代理强弱档策略与派活粒度、DSH 服务纪律…） | **首选直接复制旧机的 `%USERPROFILE%\.dsh\AGENTS.md`**（内容最全）；没有旧机时用仓库 `config\AGENTS-global-template.md`——它是**从开发机实际文件导出的**，只需把 `<盘符>` 换成实际盘符 |
+
+> **容量元数据已显式钉住**（2026-09-20）：`agnes-3.0-flash`、`union-alpha`、`bai` 两个模型、
+> `unlimitds` 三个 `*_jail` 模型都**不在 pi-ai 目录里**，官方源码里也查不到它们的 id
+> （全仓库 0 命中）。按解析链 `条目值 ?? 目录基值 ?? provider.defaultContextWindow`
+> （`llm-pi-ai/src/catalog.ts:901,905`），它们原先落到官方代码常量
+> `DEFAULT_CONTEXT_WINDOW=262144` / `DEFAULT_MAX_TOKENS=32768`（`llm-pi-ai/src/config.ts:64,67`）——
+> 能复现，但隐式、且官方升级改了常量会悄悄变。现已把这 4 个 provider 的
+> `defaultContextWindow` / `defaultMaxTokens` **显式写进 `settings.yaml`**（值 = 改动前的生效值，
+> 行为不变），复制 settings.yaml 即带走；`functional-parity.mjs` 会核对**按解析链算出的生效容量**，
+> 并对任何仍依赖官方常量的模型报 WARN。
 
 > `settings.yaml` 里**没有任何密钥值**（只有 `apiKeyEnv: <名字>` 这种引用），所以它可以安全地整份复制、也可以进版本库。
 
@@ -203,14 +213,17 @@ node .\functional-parity.mjs --check
 ```
 
 它逐项核对：版本 / 官方锚点 / 补丁条数 / bundle 清单（顺序敏感）/ **每个 provider 的网关、协议、模型目录** /
-默认模型 / **子代理授权清单** / 权限预设 / shell 超时 / settings 顶层段 / 插件目录与中文名表 /
+默认模型 / **子代理授权清单** / **`llm-deepseek` 模型目录覆盖**（空段 ≠ 开发机的覆盖目录）/
+**按解析链算出的模型生效容量** / 权限预设 / shell 超时 / settings 顶层段 / 插件目录与中文名表 /
 覆盖层里 `web-search-deepseek` 的功能配置；凭据**只看名字不看值**（缺名字报 WARN 并列出要填哪些）；
-`pythonPath` / `pwshPath` / link 依赖盘符属机器特定项，只提示不判定。
+`pythonPath` / `pwshPath` / link 依赖盘符属机器特定项，只提示不判定；
+若还有模型靠官方代码常量兜底容量，会单独报 WARN 提示钉住。
 `一致 N 项 · 不一致 0 项` + 退出码 0 才算功能一致。
 
-> 实测对照：开发机自检 **27 项一致 / 0 不一致**；把 `settings.yaml` 换成仓库骨架后 **11 项不一致、exit 1**，
-> 精确点名缺失的 `opencode-live` / `opencode-live-anthropic` / `opencode-live-responses` / `agnes` 路由与
-> 子代理授权清单。
+> 实测对照：开发机自检 **30 项一致 / 0 不一致 / 0 提示**；把 `settings.yaml` 换成仓库骨架后
+> **11 项不一致、exit 1**，精确点名缺失的 `opencode-live` / `opencode-live-anthropic` /
+> `opencode-live-responses` / `agnes` 路由与子代理授权清单。
+> 该工具上线时还多查出一处人工没列到的同类问题（`bai` 两个模型的容量同样靠官方常量兜底）。
 >
 > 参照机（开发机）日后改了配置，重新导出一份即可：`node .\functional-parity.mjs --export`。
 

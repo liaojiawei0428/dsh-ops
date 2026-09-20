@@ -90,13 +90,105 @@
   "permission_default_preset": "danger-full-access",
   "shell_timeout_ms": 60000,
   "ui_conversation_busy_enter": "steer",
+  "llm_deepseek_models": [
+    {
+      "id": "deepseek-v4-flash",
+      "name": "DeepSeek-V4-Flash",
+      "contextWindow": 1000000,
+      "inputModalities": [
+        "text"
+      ],
+      "imagePixelBudget": null,
+      "imageMaxBytes": null
+    },
+    {
+      "id": "deepseek-v4-flash-vision-exp",
+      "name": "DeepSeek-V4-Flash-Vision-Exp",
+      "contextWindow": 1000000,
+      "inputModalities": [
+        "text",
+        "image"
+      ],
+      "imagePixelBudget": 640000,
+      "imageMaxBytes": 1048576
+    },
+    {
+      "id": "deepseek-v4-pro",
+      "name": "DeepSeek-V4-Pro",
+      "contextWindow": 1000000,
+      "inputModalities": [
+        "text"
+      ],
+      "imagePixelBudget": null,
+      "imageMaxBytes": null
+    },
+    {
+      "id": "deepseek-v4.1-flash-expires-on-0910",
+      "name": "deepseek-v4.1",
+      "contextWindow": null,
+      "inputModalities": null,
+      "imagePixelBudget": null,
+      "imageMaxBytes": null
+    }
+  ],
+  "capacity_rows": [
+    {
+      "provider": "agnes",
+      "model": "agnes-3.0-flash",
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "source": "provider-default"
+    },
+    {
+      "provider": "bai",
+      "model": "glm-5.3-flash",
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "source": "provider-default"
+    },
+    {
+      "provider": "bai",
+      "model": "qwen3.8-flash",
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "source": "provider-default"
+    },
+    {
+      "provider": "opencode-live-anthropic",
+      "model": "union-alpha",
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "source": "provider-default"
+    },
+    {
+      "provider": "unlimitds",
+      "model": "deepseek-v4-flash-search_jail",
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "source": "provider-default"
+    },
+    {
+      "provider": "unlimitds",
+      "model": "deepseek-v4-pro-search_jail",
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "source": "provider-default"
+    },
+    {
+      "provider": "unlimitds",
+      "model": "deepseek-v4-vision_jail",
+      "contextWindow": 262144,
+      "maxTokens": 32768,
+      "source": "provider-default"
+    }
+  ],
   "providers": {
     "unlimitds": {
       "api": "openai-completions",
       "baseURL": "https://unlimitds.chat/v1",
       "harnessSessionHeader": false,
-      "defaultContextWindow": null,
-      "defaultMaxTokens": null,
+      "defaultContextWindow": 262144,
+      "defaultMaxTokens": 32768,
       "models": [
         "deepseek-v4-flash-search_jail",
         "deepseek-v4-pro-search_jail",
@@ -107,8 +199,8 @@
       "api": "openai-completions",
       "baseURL": "https://api.b.ai/v1",
       "harnessSessionHeader": false,
-      "defaultContextWindow": null,
-      "defaultMaxTokens": null,
+      "defaultContextWindow": 262144,
+      "defaultMaxTokens": 32768,
       "models": [
         "glm-5.3-flash",
         "qwen3.8-flash"
@@ -118,8 +210,8 @@
       "api": "openai-completions",
       "baseURL": "https://apihub.agnes-ai.cn/v1",
       "harnessSessionHeader": false,
-      "defaultContextWindow": null,
-      "defaultMaxTokens": null,
+      "defaultContextWindow": 262144,
+      "defaultMaxTokens": 32768,
       "models": [
         "agnes-3.0-flash"
       ]
@@ -142,8 +234,8 @@
       "api": "anthropic-messages",
       "baseURL": "https://opencode.ai/zen/go",
       "harnessSessionHeader": true,
-      "defaultContextWindow": null,
-      "defaultMaxTokens": null,
+      "defaultContextWindow": 262144,
+      "defaultMaxTokens": 32768,
       "models": [
         "minimax-m2.5",
         "minimax-m2.7",
@@ -215,6 +307,6 @@
     "pythonPath": "C:\\Users\\Administrator\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
     "pwshPath": "E:\\GongJu\\7\\pwsh.exe"
   },
-  "generated_at": "2026-09-20T10:03:50.119Z",
+  "generated_at": "2026-09-20T10:35:23.313Z",
   "generated_on": "WIN-NP0CSS5OPMB"
 }

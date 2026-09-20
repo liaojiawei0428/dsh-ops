@@ -121,6 +121,36 @@ const providerView = (profile) => ({
   models: (profile.models ?? []).map((m) => m.id).sort(),
 })
 
+/**
+ * The capacity a model actually gets, following the official resolution chain
+ * (`llm-pi-ai/src/catalog.ts:901,905`): model entry → catalog/base → the provider
+ * profile's default → the code constant (`llm-pi-ai/src/config.ts:64,67`).
+ * The catalog step is not visible from configuration, so a model that is absent
+ * from the catalog and carries neither its own nor a provider-level value ends up
+ * on the code constant — reproducible today, but silently movable by an official
+ * upgrade. Such rows are recorded here and flagged on check.
+ */
+const DEFAULT_CONTEXT_WINDOW = 262_144
+const DEFAULT_MAX_TOKENS = 32_768
+function capacityRows(settings) {
+  const rows = []
+  for (const [provider, profile] of Object.entries(settings['llm-pi-ai']?.providers ?? {})) {
+    for (const model of profile.models ?? []) {
+      if (model.contextWindow !== undefined && model.maxTokens !== undefined) continue
+      rows.push({
+        provider,
+        model: model.id,
+        contextWindow: model.contextWindow ?? profile.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,
+        maxTokens: model.maxTokens ?? profile.defaultMaxTokens ?? DEFAULT_MAX_TOKENS,
+        source: model.contextWindow !== undefined
+          ? 'model'
+          : profile.defaultContextWindow !== undefined ? 'provider-default' : 'implicit-code-default',
+      })
+    }
+  }
+  return rows.sort((a, b) => `${a.provider}/${a.model}`.localeCompare(`${b.provider}/${b.model}`))
+}
+
 /** Everything that defines THIS deployment's behaviour, minus secrets and paths. */
 async function collect() {
   const settings = await readYaml(join(DSH_HOME, 'settings.yaml'))
@@ -164,6 +194,17 @@ async function collect() {
     permission_default_preset: settings['permission']?.defaultPreset ?? null,
     shell_timeout_ms: settings['shell']?.timeoutMs ?? null,
     ui_conversation_busy_enter: settings['ui-conversation']?.busyEnter ?? null,
+    // llm-deepseek 是内置 provider 的**模型目录覆盖**：空段/缺段时走官方默认目录，
+    // 与开发机显式覆盖过的目录（含 vision 变体与图像预算）不是同一套，必须逐项核对。
+    llm_deepseek_models: (settings['llm-deepseek']?.models ?? []).map((m) => ({
+      id: m.id,
+      name: m.name ?? null,
+      contextWindow: m.contextWindow ?? null,
+      inputModalities: m.inputModalities ?? null,
+      imagePixelBudget: m.imagePixelBudget ?? null,
+      imageMaxBytes: m.imageMaxBytes ?? null,
+    })).sort((a, b) => a.id.localeCompare(b.id)),
+    capacity_rows: capacityRows(settings),
     providers,
     subagent_model_selection: {
       enabled: settings['subagent-model-selection']?.enabled ?? false,
@@ -244,6 +285,8 @@ const scalars = [
   ['shell.timeoutMs', 'shell_timeout_ms'],
   ['ui-conversation.busyEnter', 'ui_conversation_busy_enter'],
   ['子代理授权清单', 'subagent_model_selection'],
+  ['llm-deepseek 模型目录覆盖', 'llm_deepseek_models'],
+  ['模型容量（按解析链算出的生效值）', 'capacity_rows'],
   ['profile bundle 清单（顺序敏感）', 'bundles'],
   ['settings 顶层段', 'settings_sections'],
   ['自研插件目录', 'plugins_on_disk'],
@@ -272,6 +315,12 @@ for (const name of Object.keys(actual.providers)) {
 const wantWs = expected.overlay?.web_search_deepseek ?? null
 const gotWs = actual.overlay?.web_search_deepseek ?? null
 add(same(wantWs, gotWs) ? 'OK' : 'FAIL', '覆盖层 web-search-deepseek 功能配置', wantWs, gotWs)
+
+// 容量若靠官方代码常量兜底：今天两边一致，但官方升级改常量时会悄悄漂移 → 提示显式钉住
+const implicit = actual.capacity_rows.filter((r) => r.source === 'implicit-code-default')
+add(implicit.length === 0 ? 'OK' : 'WARN', '模型容量是否有隐式兜底',
+  '(无 —— 全部显式或由 provider 默认值确定)',
+  implicit.length === 0 ? '无' : `${implicit.length} 个依赖官方常量: ${implicit.map((r) => `${r.provider}/${r.model}`).join(', ')}`)
 
 // credentials: NAMES only — the values are this machine's own business
 const haveRefs = await credentialRefNames()

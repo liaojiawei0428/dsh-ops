@@ -1,9 +1,10 @@
 # BUG 记录索引
 
-共 250 条（fixed 210 / workaround 18 / open 22）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
+共 252 条（fixed 212 / workaround 18 / open 22）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
 
 | 日期 | 记录 | 组件 | 严重度 | 状态 | 症状 |
 |---|---|---|---|---|---|
+| 2026-09-20 | [2026-09-20-model-capacity-implicit-defaults](2026-09-20-model-capacity-implicit-defaults.md) | settings.yaml | minor | fixed | agnes-3.0-flash、union-alpha、unlimitds 三个 *_jail（以及 bai 两个）模型的上下文/输出容量在仓库脚本与官方目录里都查不到，实际值隐式来自官方代码常量；llm-deepseek 段若为空则静默回退官方默认目录——两者都无法从仓库还原、也无法被当时的核对脚本发现。 |
 | 2026-09-20 | [2026-09-20-js-block-comment-star-slash-trap](2026-09-20-js-block-comment-star-slash-trap.md) | functional-parity.mjs | minor | fixed | 新写的 functional-parity.mjs 一执行就 SyntaxError: Unexpected identifier '找不到运行副本的依赖目录'，报错指向一个语法完全正常的模板字面量行。 |
 | 2026-09-20 | [2026-09-20-deploy-doc-newmachine-drill-gaps](2026-09-20-deploy-doc-newmachine-drill-gaps.md) | DEPLOY.md | major | fixed | 按 DEPLOY.md 在新机部署：第 1 步手工 git clone 直连 GitHub 直接失败（curl 28 / Connection reset，exit 128，41 秒），文档未给代理设置方式；同机隔离演练时照第 4 步跑 start-dsh-web.ps1 会静默打开正式实例页面并报成功（隔离实例根本没起），健康检查则按 3080 判存活且可能反向拉起正式启动链。 |
 | 2026-09-20 | [2026-09-20-deploy-doc-credential-source-wrong](2026-09-20-deploy-doc-credential-source-wrong.md) | DEPLOY.md | minor | fixed | DEPLOY.md 第 3 步声称「只复制 .credentials.yaml 不够，OPENCODE_GO_API_KEY 走环境变量通道」——与实测相反，会让新机用户白折腾去设一个本不需要的环境变量。 |
@@ -17,6 +18,7 @@
 | 2026-09-20 | [2026-09-20-banmu-friend-ops-unidirectional](2026-09-20-banmu-friend-ops-unidirectional.md) | banmu-server/game_actions.js（好友关系） | major | fixed | 半亩芳华：删除好友后对方列表仍保留自己（单向僵尸好友）；好友栏只显示 openid 且没有查看对方资料的能力。 |
 | 2026-09-20 | [2026-09-20-banmu-blacklist-array-parsed-as-object](2026-09-20-banmu-blacklist-array-parsed-as-object.md) | banmu-admin/logic.service | major | fixed | 玩家拉黑后文字版黑名单始终显示"黑名单为空"（DB 与游戏服均已写入 hei_ming_dan） |
 | 2026-09-20 | [2026-09-20-banmu-admin-restart-pid-mismatch](2026-09-20-banmu-admin-restart-pid-mismatch.md) | banmu-admin/deploy（重启流程） | major | fixed | 半亩芳华后台：构建与上传都成功、dist 文件已是新版，但线上行为仍是旧逻辑（改了代码没生效）；ps 显示监听 3002 的进程启动时间是前一天。 |
+| 2026-09-20 | [2026-09-20-agents-global-template-stale](2026-09-20-agents-global-template-stale.md) | config/AGENTS-global-template.md | minor | fixed | 仓库里的全局指令模板仍写着「队友一律用强档，默认模型无法配置」，与已被补丁推翻的现实相反；按它部署的新机会拿到错误的分派规则，且缺少「派活粒度按档位切」的实测纪律。 |
 | 2026-09-19 | [2026-09-19-tu-di-kuo-jian-0-tu-di-zhuang-tai-0-farm](2026-09-19-tu-di-kuo-jian-0-tu-di-zhuang-tai-0-farm.md) | banmu-server/game_actions.js（farm_water / farm_plant_seed） | major | open | 从未开垦的地块（tu_di_kuo_jian=0 且 tu_di_zhuang_tai=0）可直接 farm_water 浇水并 farm_plant_seed 播种成功，绕过开垦与等级上限（线上实测 slot 30 均 ok:true） |
 | 2026-09-19 | [2026-09-19-tool-python-roots-missing-localappdata](2026-09-19-tool-python-roots-missing-localappdata.md) | dsh-tool-python | minor | fixed | 在 Python 装在 %LOCALAPPDATA%\Python\pythoncore-3.14-64（python.org per-user 新布局）的机器上，若未在 profile 里钉死 pythonPath，dsh-tool-python 会自动发现失败并报「未找到可用的 Python 3」；而 health-check 却能找到同一个解释器，两条定位链结论不一致 |
 | 2026-09-19 | [2026-09-19-subagent-model-policy-frozen-per-session](2026-09-19-subagent-model-policy-frozen-per-session.md) | dsh-subagent / tool-subagent（官方） | minor | workaround | 已在设置里授权子代理可用的模型，但派子代理仍报 child LLM route "provider/model" is not allowed for this Session；改设置与重启服务均无效 |
