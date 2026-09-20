@@ -1,0 +1,118 @@
+{
+  "collected_at": "2026-09-19 (session T3)",
+  "dsh_version": "0.1.6-alpha.2",
+  "bundles": [
+    "@deepseek-ai/dsh-base",
+    "@deepseek-ai/dsh-web-app",
+    "dsh-locale-language",
+    "dsh-deepseek-balance",
+    "dsh-tool-python",
+    "dsh-bug-log",
+    "dsh-personal-hub",
+    "dsh-personal-bar",
+    "dsh-plugin-guide",
+    "dsh-restart-resume",
+    "dsh-server-ssh",
+    "dsh-github-push",
+    "dsh-computer-use",
+    "@deepseek-ai/dsh-experimental-agent-team-profile",
+    "@deepseek-ai/dsh-experimental-agent-team-web-profile"
+  ],
+  "bundles_count": 15,
+  "link_dependencies": {
+    "dsh-locale-language": "link:E:/DSH/DSH-ops/plugins/dsh-locale-language",
+    "dsh-deepseek-balance": "link:E:/DSH/DSH-ops/plugins/dsh-deepseek-balance",
+    "dsh-tool-python": "link:E:/DSH/DSH-ops/plugins/dsh-tool-python",
+    "dsh-bug-log": "link:E:/DSH/DSH-ops/plugins/dsh-bug-log",
+    "dsh-personal-hub": "link:E:/DSH/DSH-ops/plugins/dsh-personal-hub",
+    "dsh-personal-bar": "link:E:/DSH/DSH-ops/plugins/dsh-personal-bar",
+    "dsh-plugin-guide": "link:E:/DSH/DSH-ops/plugins/dsh-plugin-guide",
+    "dsh-restart-resume": "link:E:/DSH/DSH-ops/plugins/dsh-restart-resume",
+    "dsh-server-ssh": "link:E:/DSH/DSH-ops/plugins/dsh-server-ssh",
+    "dsh-github-push": "link:E:/DSH/DSH-ops/plugins/dsh-github-push",
+    "dsh-computer-use": "link:E:/DSH/DSH-ops/plugins/dsh-computer-use",
+    "@deepseek-ai/dsh-computer-use": "link:E:/DSH/DSH-ops/Deepseek_DSH/packages/computer-use/computer-use",
+    "@deepseek-ai/dsh-experimental-computer-use-cua-driver-native": "link:E:/DSH/DSH-ops/Deepseek_DSH/packages/experimental/computer-use-cua-driver-native"
+  },
+  "link_count": 13,
+  "patches_count": 24,
+  "restore_count": 7,
+  "settings_sections": [
+    "ui-onboarding",
+    "agent-default-model",
+    "agent-presets",
+    "permission",
+    "ui-theme",
+    "llm-pi-ai",
+    "ui-conversation",
+    "shell",
+    "subagent-model-selection",
+    "llm-deepseek"
+  ],
+  "settings_count": 10,
+  "plugins_on_disk": [
+    "dsh-bug-log",
+    "dsh-computer-use",
+    "dsh-deepseek-balance",
+    "dsh-github-push",
+    "dsh-locale-language",
+    "dsh-opencode-session-id",
+    "dsh-personal-bar",
+    "dsh-personal-hub",
+    "dsh-plugin-guide",
+    "dsh-restart-resume",
+    "dsh-server-ssh",
+    "dsh-tool-python"
+  ],
+  "plugin_copy_keys": [
+    "@deepseek-ai/dsh-acp-app",
+    "@deepseek-ai/dsh-base",
+    "@deepseek-ai/dsh-headless",
+    "@deepseek-ai/dsh-sdk-app",
+    "@deepseek-ai/dsh-sdk-minimal",
+    "@deepseek-ai/dsh-web-app",
+    "dsh-bug-log",
+    "dsh-computer-use",
+    "dsh-deepseek-balance",
+    "dsh-github-push",
+    "dsh-locale-language",
+    "dsh-personal-bar",
+    "dsh-personal-hub",
+    "dsh-plugin-guide",
+    "dsh-restart-resume",
+    "dsh-server-ssh",
+    "dsh-tool-python"
+  ],
+  "official_ref_declared": "dsh-v0.1.6-alpha.2",
+  "official_checkout": {
+    "describe_tags": "dsh-v0.1.6-alpha.2",
+    "head_short": "ddefc45fbc"
+  },
+  "repo_head": "3664f90d819a4c2c983403c66afc2d6088523d8b",
+  "repo_origin_main": "3664f90d819a4c2c983403c66afc2d6088523d8b",
+  "node_version": "v24.16.0",
+  "pnpm_version": "11.22.0",
+  "gate_validate_plugins": {
+    "exit": 0,
+    "last_line": "validate-plugins: all 11 active linked plugin(s) safe to load"
+  },
+  "gate_check_plugin_copy": {
+    "exit": 0,
+    "last_line": "check-plugin-copy: 全部 bundle 均有中文名 OK"
+  },
+  "gate_test_standard": {
+    "exit": 0,
+    "last_line": "test-standard: all 5 checks hold",
+    "pass_fail_rows": [
+      "PASS  T1: scaffold passes pre-flight gate",
+      "      PASS dsh-test-scaffold: loads, apply() registers [(no tools)], schemas valid",
+      "PASS  T2: property-level required is rejected with the violation named",
+      "      FAIL dsh-test-bad-schema: apply() threw during registration: tool \"badtool\": unsupported JSON schema: schema.properties.kind.required is not supported on type \"string\"; schema.required must be an array of strings",
+      "PASS  T3: broken client entry is rejected at parse",
+      "      FAIL dsh-test-bad-client: client entry ./client.js fails to parse: C:\\Users\\ADMINI~1\\AppData\\Local\\Temp\\dsh-standard-test-6CuY1d\\plugins\\dsh-test-bad-client\\client.js:3",
+      "PASS  T4: disable removes the bundle entry and reports recovery",
+      "PASS  T5: deploy-chain hygiene (10 .ps1 keep BOM, 3 .cmd/.bat pure ASCII)"
+    ]
+  },
+  "health_check_last_line": "HEALTH: 全绿"
+}

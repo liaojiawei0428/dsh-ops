@@ -1,0 +1,200 @@
+{
+  "_comment": "T1 部署模拟产物指纹 —— 按 DEPLOY.md 在 F:\\ceshi_1 从零部署一套 DSH 的结果。隔离 DSH_HOME=F:\\ceshi_1\\.dsh-home。执行日期 2026-09-20。不含任何密钥/token 值。",
+  "simulation": {
+    "executor": "T1 (rootcause-judge)",
+    "target_root": "F:\\ceshi_1",
+    "isolated_dsh_home": "F:\\ceshi_1\\.dsh-home",
+    "deploy_source": "E:\\DSH\\DSH-ops\\DEPLOY.md（唯一部署依据）",
+    "official_port": 3080,
+    "verification_port": 3081,
+    "outcome": "成功 —— 推进到第 5 步 profile 装配完成，3081 验证通过"
+  },
+
+  "delivery_state_of_ops_repo": {
+    "_what": "新机 clone 到的个人仓库状态（DEPLOY.md:287-304 交付前检查口径）",
+    "ops_head": "3664f90d819a4c2c983403c66afc2d6088523d8b",
+    "ops_subject": "fix(deploy): 补齐审核清单剩余项（bootstrap 前置检查、S8 可脚本化交付判定、报告对账）",
+    "git_status_porcelain": "",
+    "git_log_origin_main..HEAD": "",
+    "verdict": "✅ 干净 —— 工作区无未提交改动、无未推送提交（前次审核 B1 阻断项已修复）"
+  },
+
+  "official_source_anchor": {
+    "_what": "官方源码版本锚定（DEPLOY.md:187-224）",
+    "declared_in_repo": "official-patches/official-ref.txt",
+    "declared_value": "dsh-v0.1.6-alpha.2",
+    "env_var_used": null,
+    "resolved_source": "official-patches\\official-ref.txt",
+    "copy_head": "ddefc45fbc7f8e46dd73185e68295696d1297887",
+    "copy_describe": "dsh-v0.1.6-alpha.2",
+    "copy_branch_state": "HEAD (detached —— pin tag 的预期结果，符合 DEPLOY.md:228)",
+    "copy_origin_refspec": "+refs/heads/*:refs/remotes/origin/*",
+    "refspec_fixed_by": "Initialize-PinnedClone（lib-official-ref.ps1:61-73，符合 DEPLOY.md:235）",
+    "parallel_checkout_head": "ddefc45fbc7f8e46dd73185e68295696d1297887",
+    "dev_machine_official_head": "ddefc45fbc7f8e46dd73185e68295696d1297887",
+    "verdict": "✅ 与开发机官方源码完全一致（同一提交），版本锚定机制生效"
+  },
+
+  "version": {
+    "bin_js_version": "0.1.6-alpha.2",
+    "doc_expectation": "0.1.6-alpha.2（DEPLOY.md:163）",
+    "match": true
+  },
+
+  "profile": {
+    "path": "F:\\ceshi_1\\.dsh-home\\profiles\\web\\package.json",
+    "bundles_count": 15,
+    "bundles_expected": 15,
+    "bundles": [
+      "@deepseek-ai/dsh-base",
+      "@deepseek-ai/dsh-web-app",
+      "dsh-locale-language",
+      "dsh-deepseek-balance",
+      "dsh-tool-python",
+      "dsh-bug-log",
+      "dsh-personal-hub",
+      "dsh-personal-bar",
+      "dsh-plugin-guide",
+      "dsh-restart-resume",
+      "dsh-server-ssh",
+      "dsh-github-push",
+      "dsh-computer-use",
+      "@deepseek-ai/dsh-experimental-agent-team-profile",
+      "@deepseek-ai/dsh-experimental-agent-team-web-profile"
+    ],
+    "dependencies_count": 13,
+    "dependencies_all_link": true,
+    "dependencies": {
+      "dsh-locale-language": "link:F:/ceshi_1/DSH-ops/plugins/dsh-locale-language",
+      "dsh-deepseek-balance": "link:F:/ceshi_1/DSH-ops/plugins/dsh-deepseek-balance",
+      "dsh-tool-python": "link:F:/ceshi_1/DSH-ops/plugins/dsh-tool-python",
+      "dsh-bug-log": "link:F:/ceshi_1/DSH-ops/plugins/dsh-bug-log",
+      "dsh-personal-hub": "link:F:/ceshi_1/DSH-ops/plugins/dsh-personal-hub",
+      "dsh-personal-bar": "link:F:/ceshi_1/DSH-ops/plugins/dsh-personal-bar",
+      "dsh-plugin-guide": "link:F:/ceshi_1/DSH-ops/plugins/dsh-plugin-guide",
+      "dsh-restart-resume": "link:F:/ceshi_1/DSH-ops/plugins/dsh-restart-resume",
+      "dsh-server-ssh": "link:F:/ceshi_1/DSH-ops/plugins/dsh-server-ssh",
+      "dsh-github-push": "link:F:/ceshi_1/DSH-ops/plugins/dsh-github-push",
+      "dsh-computer-use": "link:F:/ceshi_1/DSH-ops/plugins/dsh-computer-use",
+      "@deepseek-ai/dsh-computer-use": "link:F:/ceshi_1/DSH-ops/Deepseek_DSH/packages/computer-use/computer-use",
+      "@deepseek-ai/dsh-experimental-computer-use-cua-driver-native": "link:F:/ceshi_1/DSH-ops/Deepseek_DSH/packages/experimental/computer-use-cua-driver-native"
+    },
+    "cordis_patch_yml_lines": 31,
+    "drive_letter_derivation": "✅ 13 条依赖全部自动派生为 F:/ceshi_1/... —— 盘符自由（开发机为 E:）得到实证",
+    "machine_specific_overlay_generated": {
+      "file": "F:\\ceshi_1\\DSH-ops\\personal-hub\\personal.local.json",
+      "pwshPath": "E:\\GongJu\\7\\pwsh.exe",
+      "pythonPath": "C:\\Users\\Administrator\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+      "extraDependencies_count": 2,
+      "note": "pwshPath/pythonPath 取自本机实际安装位（探测所得），extraDependencies 指向 F:\\ceshi_1 副本"
+    }
+  },
+
+  "patches": {
+    "file": "F:\\ceshi_1\\DSH-ops\\official-patches\\apply-patches.mjs",
+    "patches_count": 24,
+    "restore_count": 7,
+    "doc_expectation": "24 条精确文本替换 + 7 个文件恢复（DEPLOY.md:100）",
+    "match": true,
+    "apply_result": "全部补丁应用成功（bootstrap 第 3 步未 fail-loud）"
+  },
+
+  "gates_in_isolated_env": {
+    "_env": "DSH_HOME=F:\\ceshi_1\\.dsh-home，cwd=F:\\ceshi_1\\DSH-ops",
+    "validate_plugins": {
+      "command": "node validate-plugins.mjs",
+      "exit_code": 0,
+      "conclusion_line": "validate-plugins: all 11 active linked plugin(s) safe to load",
+      "doc_expectation": "11 个挂载插件全 PASS（DEPLOY.md:160）",
+      "match": true
+    },
+    "check_plugin_copy": {
+      "command": "node check-plugin-copy.mjs",
+      "exit_code": 0,
+      "conclusion_line": "check-plugin-copy: 全部 bundle 均有中文名 OK",
+      "detail": "profile bundles: 15 · table entries: 17 · covered 13 · exempt 2 · missing 0",
+      "doc_expectation": "missing 0（DEPLOY.md:161）",
+      "match": true
+    },
+    "test_standard": {
+      "command": "node test-standard.mjs",
+      "exit_code": 0,
+      "conclusion_line": "test-standard: all 5 checks hold",
+      "doc_expectation": "（契约要求；DEPLOY.md 未列入第 4 步验收清单）",
+      "match": true
+    }
+  },
+
+  "dump_config": {
+    "command": "node .\\Deepseek_DSH\\apps\\cli\\lib\\bin.js --profile web --dump-config",
+    "exit_code": 0,
+    "output_lines": 630,
+    "all_15_bundles_present": true,
+    "named_ids_present": [
+      "dsh-server-ssh", "dsh-github-push", "dsh-personal-hub",
+      "dsh-deepseek-balance", "dsh-tool-python", "dsh-computer-use", "dsh-personal-bar"
+    ],
+    "doc_expectation": "15 条 bundle 全部出现，含 7 个点名 id（DEPLOY.md:162）",
+    "match": true
+  },
+
+  "http_verification_3081": {
+    "_note": "第 4 步的等价替代（契约指定；DEPLOY.md 只给 3080）。token 值不记录。",
+    "command": "node .\\Deepseek_DSH\\apps\\cli\\lib\\bin.js --profile web --port 3081 --no-open",
+    "env": "DSH_HOME=F:\\ceshi_1\\.dsh-home",
+    "listen_pid": 49552,
+    "log_printed_tokenized_url": true,
+    "bare_url": { "status": 401, "reason": "Unauthorized", "body_snippet": "dsh web authentication required; reopen the URL printed by dsh web." },
+    "tokenized_url": { "status": 303, "reason": "See Other", "location": "/", "set_cookie_present": true, "note": "token 被换成会话 cookie（Set-Cookie: dsh-auth-...）；cookie 的 authority 段为 127.0.0.1:3081" },
+    "with_cookie_root": { "status": 200, "content_type": "text/html; charset=utf-8", "body_starts_with_doctype": true },
+    "doc_expectation": "裸地址 401；带 token 地址可进界面（DEPLOY.md:164）",
+    "match": "部分 —— 裸地址 401 符合；带 token 需两步（303→cookie→200），文档未说明中间步骤",
+    "cleanup": "已按 3081 监听 pid 停止，端口已释放"
+  },
+
+  "safety_invariants": {
+    "official_service_pid_before": 44804,
+    "official_service_pid_after": 44804,
+    "official_service_untouched": true,
+    "forbidden_scripts_run": [],
+    "user_dsh_home_modified": false,
+    "note": "全程未运行 start-dsh-web.ps1 / watchdog-dsh.ps1 / update-dsh.ps1；C:\\Users\\Administrator\\.dsh 仅只读复制"
+  },
+
+  "timeline": {
+    "_tz": "local (UTC+8)",
+    "t1_start": "2026-09-20T09:36:22",
+    "step1_clone_attempt1_failed": { "start": "09:36:34", "end": "09:37:15", "seconds": 41, "exit": 128, "cause": "直连 github 被重置（文档未给代理设置）" },
+    "step1_clone_attempt2_ok": { "start": "09:37:24", "end": "09:37:41", "seconds": 16.9, "exit": 0, "cause": "带 -c http.proxy=... 成功" },
+    "step2_bootstrap": { "start": "09:38:11", "end": "09:52:21", "seconds": 850, "exit": 0 },
+    "step2_phases": {
+      "preflight_check": "通过（git 2.47.1 / node v24.16.0 / pnpm 11.22.0 / python 桩被报 OK）",
+      "step_1_clone_official_copy": "12072 文件，detached HEAD @ ddefc45f，refspec 已修正",
+      "step_1b_clone_parallel_checkout": "12072 文件，同上",
+      "step_2_pnpm_install": "314 workspace projects / +1319 packages，成功",
+      "step_3_apply_patches": "24 条 + 7 restore 全部成功",
+      "step_4_pnpm_run_build": "host 面 + client 面（tsc -b tsconfig.client.json）+ web 面（vite）全部成功；recorded 248 client artifacts",
+      "step_5_profile_reapply": "{\"ok\": true}，含「复检无漂移」"
+    },
+    "step3_user_data_copy": "09:52:21 之后（settings.yaml/.credentials.yaml/AGENTS.md/github-push/server-ssh/backups）",
+    "step4_gates": "09:53–09:56（validate-plugins / check-plugin-copy / test-standard / --version / --dump-config）",
+    "step4_http_3081": { "start": "09:56:5x", "ready_after_seconds": 9, "verified": "09:58", "stopped": "09:59" },
+    "t1_end_estimate": "2026-09-20T10:0x",
+    "total_elapsed_minutes": "≈25"
+  },
+
+  "key_finding_build": {
+    "_what": "client 阶段是否重现 TS2339（本次模拟的核心验证点之一）",
+    "client_phase_command": "tsc -b tsconfig.client.json && tsdown --env.DSH_BUILD_FACE client",
+    "result": "✅ 通过（exit 0）",
+    "client_ui_agent_team_built": true,
+    "client_ui_agent_team_build_line": "@deepseek-ai/dsh-experimental-client-ui-agent-team/client [CJS] lib\\client.js 174.15 kB — Build complete in 5847ms",
+    "conclusion": "24 条补丁版（含 agent-team 的本地 TeammateAgentOptions 类型修复）在新机从零部署时 client 阶段不报 TS2339；此前运行副本的失败确非官方既有不兼容"
+  },
+
+  "artifacts_written": [
+    "E:\\DSH\\DSH-ops\\research\\deploy-sim\\run-log.md",
+    "E:\\DSH\\DSH-ops\\research\\deploy-sim\\doc-defects.md",
+    "E:\\DSH\\DSH-ops\\research\\deploy-sim\\artifacts.json"
+  ]
+}

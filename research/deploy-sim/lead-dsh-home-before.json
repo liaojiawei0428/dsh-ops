@@ -1,0 +1,55 @@
+{
+  "taken_at": "2026-09-20T09:35:58",
+  "home": "C:\\Users\\Administrator\\.dsh",
+  "files": {
+    "settings.yaml": {
+      "path": "settings.yaml",
+      "size": 7325,
+      "mtime": "2026-09-19T10:02:58",
+      "sha256": "5b5d9b8d5ef5a278"
+    },
+    ".credentials.yaml": {
+      "path": ".credentials.yaml",
+      "size": 559,
+      "mtime": "2026-09-14T17:04:14",
+      "sha256": "dcd2a7f40b86bfe2"
+    },
+    "AGENTS.md": {
+      "path": "AGENTS.md",
+      "size": 5028,
+      "mtime": "2026-09-19T16:05:13",
+      "sha256": "9d5322fb64581a22"
+    },
+    "profiles/web/package.json": {
+      "path": "profiles/web/package.json",
+      "size": 1698,
+      "mtime": "2026-09-18T17:14:46",
+      "sha256": "8e64598177bf34fa"
+    },
+    "profiles/web/cordis.patch.yml": {
+      "path": "profiles/web/cordis.patch.yml",
+      "size": 1322,
+      "mtime": "2026-09-18T17:14:38",
+      "sha256": "006cd8a47f1d5999"
+    },
+    "github-push/credentials.json": {
+      "path": "github-push/credentials.json",
+      "size": 355,
+      "mtime": "2026-09-03T10:06:15",
+      "sha256": "91a0aef705ee8ea6"
+    },
+    "github-push/state.json": {
+      "path": "github-push/state.json",
+      "size": 1466,
+      "mtime": "2026-09-19T15:23:47",
+      "sha256": "d6395b7d59096995"
+    }
+  },
+  "backups": {
+    "count": 56,
+    "latest": "20260918-095347"
+  },
+  "server_ssh": [
+    "state.json"
+  ]
+}

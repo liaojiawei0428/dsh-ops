@@ -71,12 +71,32 @@ git clone https://github.com/liaojiawei0428/dsh-ops.git DSH-ops
 cd DSH-ops
 ```
 
+> **直连 GitHub 不通时（本机常见）**：命令会在几十秒后以
+> `curl 28 / Recv failure: Connection was reset`、退出码 128 失败。这不是仓库问题，
+> 加上系统代理即可（`<代理>` 换成实际地址，如 `http://127.0.0.1:7688`）：
+> ```powershell
+> $p = '<代理>'
+> git -c http.proxy=$p clone https://github.com/liaojiawei0428/dsh-ops.git DSH-ops
+> ```
+> 更省事的做法是**给当前会话设代理环境变量**——第 2 步 bootstrap 的两处官方仓库克隆
+> 同样读它们，一次设置两处都通：
+> ```powershell
+> $env:HTTPS_PROXY = '<代理>'; $env:HTTP_PROXY = '<代理>'   # 只对当前会话生效
+> git clone https://github.com/liaojiawei0428/dsh-ops.git DSH-ops
+> ```
+> 判断通道是否就绪：`git -c http.proxy=$p ls-remote origin HEAD` 能返回一行提交号即可。
+> （2026-09-20 部署模拟实测：直连 41 秒失败 → 加代理 16.9 秒成功。VPN 若工作在 TUN
+> 虚拟网卡模式，直连通常本就可用，无需设代理。）
+>
 > 目录名建议就叫 `DSH-ops`（与文档、脚本注释一致）；叫别的名字也能跑，只是下文路径要跟着改。
 >
 > 隔离演练时：
 > ```powershell
 > $env:DSH_HOME = 'F:\QiTa\DSH-ops\.dsh-home'   # 只对当前会话生效
 > ```
+> 同机演练还要注意**端口**：正式实例通常占着 3080，而部署链（`start-dsh-web.ps1` /
+> `watchdog-dsh.ps1` / `update-dsh.ps1`）都按 3080 判断存活——详见第 4 步的
+> 「隔离演练怎么启动」。
 
 ---
 
@@ -135,14 +155,19 @@ bootstrap 已重建 `profiles\web\`。还需要**用户数据**（含密钥，�
 
 | # | 文件/目录 | 内容 | 新机怎么来 |
 |---|---|---|---|
-| 1 | `settings.yaml` | 界面/模型/权限等设置 | **推荐直接从旧机复制**（不含密钥）；仓库 `config\settings.yaml` 只是最小骨架（139 行 / 7 个顶层段），**缺**开发机的 `shell`（pwsh 超时）、`subagent-model-selection`（子代理授权模型清单）、`llm-deepseek`（模型目录覆盖）三个命名空间，也不含开发机的模型 provider 通道、超时等配置——照它配出来的**不是**同一套 DSH |
+| 1 | `settings.yaml` | 界面/模型/权限等设置 | **推荐直接从旧机复制**（不含密钥）；仓库 `config\settings.yaml` 只是最小骨架（7 个顶层段，约 165 行），**缺**开发机的 `shell`（pwsh 超时）、`subagent-model-selection`（子代理授权模型清单）、`llm-deepseek`（模型目录覆盖）三个命名空间，也不含开发机的模型 provider 通道、超时等配置——照它配出来的**不是**同一套 DSH |
 | 2 | `.credentials.yaml` | API Key 等密钥 | 从旧机复制，或按格式重填；**永不提交仓库** |
 | 3 | `AGENTS.md` | 全局指令底座（本机 AI 协作规则，对所有会话生效） | 从旧机复制 `~/.dsh/AGENTS.md`；或复制仓库 `config\AGENTS-global-template.md` 后按本机路径改写 |
 | 4 | 插件自有凭据 | `github-push\credentials.json`（GitHub PAT）、`server-ssh\`（如启用 SSH） | 从旧机复制，或在新机重新登录/填写 |
 | 5 | （可选）`backups\` | 历史备份 | 需要时从旧机复制 |
+| 6 | **环境变量**（不在文件里，最易漏） | `OPENCODE_GO_API_KEY`（`personal.json` 的 `web-search-deepseek` extraPatch 与 `cordis.patch.yml` 的 `apiKeyEnv` 都要求它）、以及 `settings.yaml` 里各 provider 用到的 `*_API_KEY` | 与旧机的系统/用户环境变量保持一致，或在新机重新设置。**只复制 `.credentials.yaml` 不够**——上面这个 key 走的是环境变量通道 |
 
 > 演练/验证时若只想「服务能起来」：`settings.yaml` 用仓库模板即可；`.credentials.yaml` 可暂缺
-> （模型调用会报未配置，但服务本身能启动、插件能加载）。
+> （模型调用会报未配置，但服务本身能启动、插件能加载）。但 **`web_search` 工具会因缺
+> `OPENCODE_GO_API_KEY` 直接报错**（不是静默降级），要验证该工具就得先设它。
+>
+> 复制完建议核对一次段数：`(Select-String -Path $env:DSH_HOME\settings.yaml -Pattern '^[A-Za-z_][\w.\-]*:').Count`
+> 应与旧机相同（开发机当前 **10** 段）。
 
 ---
 
@@ -156,16 +181,41 @@ pwsh -File .\start-dsh-web.ps1
 
 | # | 检查 | 命令/期望 |
 |---|---|---|
-| 1 | 健康检查 | `.\health-check.cmd`（或 `pwsh -NoProfile -File .\health-check.ps1`）→ 全绿；其中「看门狗 G5」段应显示在岗 pid（不在岗会自动复活） |
+| 1 | 健康检查 | `.\health-check.cmd`（或 `pwsh -NoProfile -File .\health-check.ps1`）→ 全绿；其中「看门狗 G5」段应显示在岗 pid（不在岗会自动复活）。**⚠️ 隔离演练跳过本项**——它按 3080 判存活，且会「复活看门狗」从而拉起正式启动链，同机演练时可能反向干扰正式服务（见下方「隔离演练怎么启动」） |
 | 2 | 插件闸门 | `node .\validate-plugins.mjs` → **11 个挂载插件全 PASS**（退出码 0） |
 | 3 | 中文文案 | `node .\check-plugin-copy.mjs` → `missing 0`（新增插件漏加中文名会在此报红） |
 | 4 | 组合树 | `node .\Deepseek_DSH\apps\cli\lib\bin.js --profile web --dump-config` → 15 条 bundle 全部出现，含 `dsh-server-ssh / dsh-github-push / dsh-personal-hub / dsh-deepseek-balance / dsh-tool-python / dsh-computer-use / dsh-personal-bar` |
 | 5 | 版本 | `node .\Deepseek_DSH\apps\cli\lib\bin.js --version` → 与开发机一致（当前 `0.1.6-alpha.2`） |
-| 6 | 页面 | 浏览器打开 `http://127.0.0.1:3080`（用 `dsh-web.log` 里带 token 的地址；裸地址 401）→ 个人胶囊行（SSH/推送/余额/版本）与 Agent Teams 均可用 |
+| 6 | 部署链自检 | `node .\test-standard.mjs` → `all 5 checks hold`（唯一能验证「部署链自身没被改坏」的闸门，含 `.ps1` BOM / `.cmd`+`.bat` 纯 ASCII） |
+| 7 | 页面 | 浏览器打开 `http://127.0.0.1:3080`（用日志里**带 token 的地址**；裸地址 401）→ 个人胶囊行（SSH/推送/余额/版本）与 Agent Teams 均可用 |
+
+> **带 token 地址的访问流程（命令行验证必读）**：裸地址 → **401**；带 token 的地址 → **303 See Other**
+> 并把 token 换成会话 cookie（`Set-Cookie: dsh-auth-…`）；再带该 cookie 请求 `/` → **200** 真实 HTML。
+> 浏览器会自动跟随这两步，所以「打开就能用」；用 `curl`/`Invoke-WebRequest` 验证时看到 303
+> **不代表失败**，需 `curl -L -c jar -b jar` 走完两步才算通过。
 
 > **端口冲突**：3080 是官方默认端口，且 `start-dsh-web.ps1` / `watchdog-dsh.ps1` / `update-dsh.ps1`
 > 全链按 3080 判断存活——要换端口必须同步改这几处，否则看门狗会把健康服务误判为死亡并反复拉起。
 > 演练时最省事的做法是先停本机正在运行的那个实例，或直接换一台机器练。
+
+### 隔离演练怎么启动（同机、正式实例仍在跑）
+
+正式实例占着 3080 时**不要**跑 `start-dsh-web.ps1`：脚本先探测 3080，发现已在监听就打印
+「DSH 服务已在运行」、写 pid 文件、打开**正式实例的页面**并 `exit 0` ——看起来成功，
+其实**根本没启动隔离实例**。改用直起 CLI 并换一个空闲端口：
+
+```powershell
+$env:DSH_HOME = '<隔离目录>'                     # 例如 F:\ceshi_1\.dsh-home
+Set-Location <隔离的个人仓库>\DSH-ops
+node .\Deepseek_DSH\apps\cli\lib\bin.js --profile web --port 3081 --no-open
+# 从输出里取带 token 的地址验证；验证完按 3081 的监听 pid 停掉：
+#   Get-NetTCPConnection -State Listen -LocalPort 3081 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+```
+
+同机演练时另外两项也要替换：健康检查（第 1 项）**跳过**，诊断看门狗/启动链的脚本
+（`watchdog-dsh.ps1`、`update-dsh.ps1`）**不要跑**——它们都以 3080 为目标。
+2026-09-20 的完整演练记录（含全部命令与结果）见
+[research/deploy-sim/](research/deploy-sim/)。
 
 ---
 
@@ -238,8 +288,11 @@ $env:DSH_OFFICIAL_REF = 'dsh-v0.1.6-alpha.2'
 
 实测（三种克隆形态各跑一遍升级，含上游删除文件的场景）：游离 HEAD + 已修正 refspec、
 游离 HEAD + 旧 refspec（走兜底）、普通分支克隆（走原 `pull --ff-only`）**全部通过**，
-工作树与提交完全一致、无残留脏文件；且仓库始终保持 shallow——**不需要**为升级下载
-约 287 MB 的全量历史。
+工作树与提交完全一致、无残留脏文件；且**新机的 `--depth 1` 克隆始终保持 shallow**——
+不需要为升级下载约 287 MB 的全量历史。
+> 注意区分：**开发机的平级 checkout 是完整克隆**（`git rev-parse --is-shallow-repository`
+> 返回 `false`，它有 18059 个提交和完整 tag），上面那句只描述新机按锚点做 `--depth 1` 克隆
+> 的情形。所以「`is-shallow` 两边必须一样」不是一致性判据。
 
 ---
 
@@ -274,6 +327,12 @@ $env:DSH_OFFICIAL_REF = 'dsh-v0.1.6-alpha.2'
   新机通常由官方组件在首次运行时补写；若对比发现缺失，照开发机的
   `~/.dsh/profiles/web/cordis.patch.yml` 手工补齐即可（低影响，不影响 Agent Teams 本身在
   `dsh.profile.bundles` 里的两条 bundle）。
+  > **2026-09-20 演练实测**：隔离部署起来后该条目**仍未出现**（官方组件不会仅凭启动就补写），
+  > 但这**不影响功能**——开发机那条是 `- id: tool-agent-team` + `disabled: false`，属于
+  > **冗长的显式启用**：Cordis 里 `disabled` 缺省即启用（`host/plugin-inventory/src/index.ts:88`
+  > 就是 `enabled: !entry.disabled`），官方 bundle `experimental/agent-team-profile/cordis.patch.yml`
+  > 也是不带 `disabled` 字段直接 insert。两边的组合树逐行 diff 只差「机器路径注释」与这一行，
+  > **功能等价**。所以对比两台机器的 `cordis.patch.yml` 时，别把这条差异当成部署失败。
 - **Node 版本**：官方要求 `^22.19 || >=24`；pnpm 11+。
 - **原生依赖**：官方 lockfile 若含 fs-ext 等原生模块，新机需 VS Build Tools（C++）——缺则
   `pnpm install` 报错，按提示安装。
