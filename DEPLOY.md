@@ -156,15 +156,24 @@ bootstrap 已重建 `profiles\web\`。还需要**用户数据**（含密钥，�
 | # | 文件/目录 | 内容 | 新机怎么来 |
 |---|---|---|---|
 | 1 | `settings.yaml` | 界面/模型/权限等设置 | **推荐直接从旧机复制**（不含密钥）；仓库 `config\settings.yaml` 只是最小骨架（7 个顶层段，约 165 行），**缺**开发机的 `shell`（pwsh 超时）、`subagent-model-selection`（子代理授权模型清单）、`llm-deepseek`（模型目录覆盖）三个命名空间，也不含开发机的模型 provider 通道、超时等配置——照它配出来的**不是**同一套 DSH |
-| 2 | `.credentials.yaml` | API Key 等密钥 | 从旧机复制，或按格式重填；**永不提交仓库** |
+| 2 | `.credentials.yaml` | **全部 API Key**（`OPENCODE_GO_API_KEY` / `OPENCODE_API_KEY` / `BAI_API_KEY` / `AGNES_API_KEY` / `UNLIMITDS_API_KEY` / `DEEPSEEK_API_KEY`，共 6 条 `refs` + 1 条 GUI 登录记录） | 从旧机复制，或在新机「设置 → 模型」里重新填（会写回该文件）；**永不提交仓库**。它是**明文 YAML、不绑定机器**（无 DPAPI/加密），复制过去即可用 |
 | 3 | `AGENTS.md` | 全局指令底座（本机 AI 协作规则，对所有会话生效） | 从旧机复制 `~/.dsh/AGENTS.md`；或复制仓库 `config\AGENTS-global-template.md` 后按本机路径改写 |
-| 4 | 插件自有凭据 | `github-push\credentials.json`（GitHub PAT）、`server-ssh\`（如启用 SSH） | 从旧机复制，或在新机重新登录/填写 |
-| 5 | （可选）`backups\` | 历史备份 | 需要时从旧机复制 |
-| 6 | **环境变量**（不在文件里，最易漏） | `OPENCODE_GO_API_KEY`（`personal.json` 的 `web-search-deepseek` extraPatch 与 `cordis.patch.yml` 的 `apiKeyEnv` 都要求它）、以及 `settings.yaml` 里各 provider 用到的 `*_API_KEY` | 与旧机的系统/用户环境变量保持一致，或在新机重新设置。**只复制 `.credentials.yaml` 不够**——上面这个 key 走的是环境变量通道 |
+| 4 | 插件自有凭据 | `github-push\credentials.json`（GitHub PAT）+ `github-push\state.json`（绑定关系）、`server-ssh\state.json`（SSH 服务器列表） | 从旧机复制。**注意**：`state.json` 里的绑定路径是旧机的（如 `E:\DSH\DSH-ops`），新机路径不同时要在面板里改掉，否则推送/SSH 指向不存在的目录 |
+| 5 | （可选）`backups\`、`sessions\`、`storages\` | 历史备份、会话历史 | 需要时从旧机复制；与「同一套 DSH」无关（`sessions` 当前约 159 MB，`storages` 约 1.6 MB） |
+
+> **不需要另设环境变量**：所有 `*_API_KEY` 都在第 2 项那个文件里。凭据的解析顺序是
+> **进程环境变量 > `$DSH_HOME/.credentials.yaml` > `$DSH_HOME/.env`**（`credentials-local` 的分层），
+> 开发机三种 OS 环境变量都没设，全部走 `.credentials.yaml`。
+> （2026-09-20 更正：此前本节曾写「只复制 `.credentials.yaml` 不够、还要设 `OPENCODE_GO_API_KEY`
+> 环境变量」——实测不成立，恰恰相反。）
+>
+> **千万不要复制 `profiles\`**：它由第 2 步 bootstrap 按本机重新装配，里面的 `link:` 依赖带盘符
+> （旧机是 `E:\DSH\...`）。把旧机的 `profiles\` 拷过去会让新机指向不存在的路径，插件全部解析失败。
+> 同理不要复制 `.anonymous-user-id`（新机自己生成）。
 
 > 演练/验证时若只想「服务能起来」：`settings.yaml` 用仓库模板即可；`.credentials.yaml` 可暂缺
-> （模型调用会报未配置，但服务本身能启动、插件能加载）。但 **`web_search` 工具会因缺
-> `OPENCODE_GO_API_KEY` 直接报错**（不是静默降级），要验证该工具就得先设它。
+> （模型调用会报未配置，但服务本身能启动、插件能加载）。但**缺 `.credentials.yaml` 时
+> `web_search` 工具会直接报错**（不是静默降级），要验证该工具就得把密钥配上。
 >
 > 复制完建议核对一次段数：`(Select-String -Path $env:DSH_HOME\settings.yaml -Pattern '^[A-Za-z_][\w.\-]*:').Count`
 > 应与旧机相同（开发机当前 **10** 段）。

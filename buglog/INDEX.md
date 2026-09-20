@@ -1,16 +1,20 @@
 # BUG 记录索引
 
-共 245 条（fixed 205 / workaround 18 / open 22）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
+共 249 条（fixed 209 / workaround 18 / open 22）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
 
 | 日期 | 记录 | 组件 | 严重度 | 状态 | 症状 |
 |---|---|---|---|---|---|
 | 2026-09-20 | [2026-09-20-deploy-doc-newmachine-drill-gaps](2026-09-20-deploy-doc-newmachine-drill-gaps.md) | DEPLOY.md | major | fixed | 按 DEPLOY.md 在新机部署：第 1 步手工 git clone 直连 GitHub 直接失败（curl 28 / Connection reset，exit 128，41 秒），文档未给代理设置方式；同机隔离演练时照第 4 步跑 start-dsh-web.ps1 会静默打开正式实例页面并报成功（隔离实例根本没起），健康检查则按 3080 判存活且可能反向拉起正式启动链。 |
+| 2026-09-20 | [2026-09-20-deploy-doc-credential-source-wrong](2026-09-20-deploy-doc-credential-source-wrong.md) | DEPLOY.md | minor | fixed | DEPLOY.md 第 3 步声称「只复制 .credentials.yaml 不够，OPENCODE_GO_API_KEY 走环境变量通道」——与实测相反，会让新机用户白折腾去设一个本不需要的环境变量。 |
 | 2026-09-20 | [2026-09-20-cordis-nonmanaged-entry-false-alarm](2026-09-20-cordis-nonmanaged-entry-false-alarm.md) | DEPLOY.md | minor | fixed | 对比两台机器的 cordis.patch.yml 与组合树，新机少了 `- id: tool-agent-team / disabled: false` 一条，疑似「新机 Agent Teams 被禁用」——实际是功能等价的冗余显式启用，属误报。 |
 | 2026-09-20 | [2026-09-20-bootstrap-tail-hint-ignores-dsh-home](2026-09-20-bootstrap-tail-hint-ignores-dsh-home.md) | bootstrap-personal.ps1 | minor | fixed | 隔离演练（设了 DSH_HOME）跑完 bootstrap 后，收尾提示仍写「恢复用户数据: ~/.dsh/settings.yaml 与 .credentials.yaml」——指向正式环境而非实际装配目录。 |
 | 2026-09-20 | [2026-09-20-bootstrap-preflight-python-stub](2026-09-20-bootstrap-preflight-python-stub.md) | bootstrap-personal.ps1 | minor | fixed | bootstrap 第 0 步前置检查把 Microsoft Store 的 python 桩报成「前置 OK : python（…\WindowsApps\python.exe）」，与 DEPLOY.md 第 0 步「勿用 Microsoft Store 版」的告诫自相矛盾。 |
 | 2026-09-20 | [2026-09-20-banmu-scene-naming-unify-peiyushi](2026-09-20-banmu-scene-naming-unify-peiyushi.md) | banmu-admin/web + banmu-server（场景命名） | minor | fixed | 半亩芳华：同一个图鉴精炼功能场所在不同界面显示为"铁匠铺""精炼室""培育室"三种名字，玩家无法建立稳定认知。 |
 | 2026-09-20 | [2026-09-20-banmu-refine-word-rename-peiyu](2026-09-20-banmu-refine-word-rename-peiyu.md) | banmu（命名统一：精炼→培育） | minor | fixed | 半亩芳华：场所已叫"培育室"，动作词却仍是"精炼"（出现"培育室会指定一份精炼材料清单"这类混搭），且剧情设计文档仍写"SC-20 铁匠铺"。 |
+| 2026-09-20 | [2026-09-20-banmu-logic-openid-shown-to-player](2026-09-20-banmu-logic-openid-shown-to-player.md) | banmu-admin/logic 文字版 | major | fixed | 文字版私聊记录/系统消息/好友行等把 openid、公会ID、场景编号直接显示给玩家 |
 | 2026-09-20 | [2026-09-20-banmu-logic-gm-token-missing](2026-09-20-banmu-logic-gm-token-missing.md) | banmu-admin/server（logic.service.ts） | major | fixed | 半亩芳华文字版：公会标签页只显示"你尚未加入任何公会"，公会后院面板完全不可见；但该玩家实际是公会花主（guild_id 后端返回空串）。 |
+| 2026-09-20 | [2026-09-20-banmu-friend-ops-unidirectional](2026-09-20-banmu-friend-ops-unidirectional.md) | banmu-server/game_actions.js（好友关系） | major | fixed | 半亩芳华：删除好友后对方列表仍保留自己（单向僵尸好友）；好友栏只显示 openid 且没有查看对方资料的能力。 |
+| 2026-09-20 | [2026-09-20-banmu-blacklist-array-parsed-as-object](2026-09-20-banmu-blacklist-array-parsed-as-object.md) | banmu-admin/logic.service | major | fixed | 玩家拉黑后文字版黑名单始终显示"黑名单为空"（DB 与游戏服均已写入 hei_ming_dan） |
 | 2026-09-20 | [2026-09-20-banmu-admin-restart-pid-mismatch](2026-09-20-banmu-admin-restart-pid-mismatch.md) | banmu-admin/deploy（重启流程） | major | fixed | 半亩芳华后台：构建与上传都成功、dist 文件已是新版，但线上行为仍是旧逻辑（改了代码没生效）；ps 显示监听 3002 的进程启动时间是前一天。 |
 | 2026-09-19 | [2026-09-19-tu-di-kuo-jian-0-tu-di-zhuang-tai-0-farm](2026-09-19-tu-di-kuo-jian-0-tu-di-zhuang-tai-0-farm.md) | banmu-server/game_actions.js（farm_water / farm_plant_seed） | major | open | 从未开垦的地块（tu_di_kuo_jian=0 且 tu_di_zhuang_tai=0）可直接 farm_water 浇水并 farm_plant_seed 播种成功，绕过开垦与等级上限（线上实测 slot 30 均 ok:true） |
 | 2026-09-19 | [2026-09-19-tool-python-roots-missing-localappdata](2026-09-19-tool-python-roots-missing-localappdata.md) | dsh-tool-python | minor | fixed | 在 Python 装在 %LOCALAPPDATA%\Python\pythoncore-3.14-64（python.org per-user 新布局）的机器上，若未在 profile 里钉死 pythonPath，dsh-tool-python 会自动发现失败并报「未找到可用的 Python 3」；而 health-check 却能找到同一个解释器，两条定位链结论不一致 |
