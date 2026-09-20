@@ -1,9 +1,10 @@
 # BUG 记录索引
 
-共 249 条（fixed 209 / workaround 18 / open 22）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
+共 250 条（fixed 210 / workaround 18 / open 22）。检索用 bug_search，统计用 bug_stats；本文件由 bug_report 自动重建，勿手编辑。
 
 | 日期 | 记录 | 组件 | 严重度 | 状态 | 症状 |
 |---|---|---|---|---|---|
+| 2026-09-20 | [2026-09-20-js-block-comment-star-slash-trap](2026-09-20-js-block-comment-star-slash-trap.md) | functional-parity.mjs | minor | fixed | 新写的 functional-parity.mjs 一执行就 SyntaxError: Unexpected identifier '找不到运行副本的依赖目录'，报错指向一个语法完全正常的模板字面量行。 |
 | 2026-09-20 | [2026-09-20-deploy-doc-newmachine-drill-gaps](2026-09-20-deploy-doc-newmachine-drill-gaps.md) | DEPLOY.md | major | fixed | 按 DEPLOY.md 在新机部署：第 1 步手工 git clone 直连 GitHub 直接失败（curl 28 / Connection reset，exit 128，41 秒），文档未给代理设置方式；同机隔离演练时照第 4 步跑 start-dsh-web.ps1 会静默打开正式实例页面并报成功（隔离实例根本没起），健康检查则按 3080 判存活且可能反向拉起正式启动链。 |
 | 2026-09-20 | [2026-09-20-deploy-doc-credential-source-wrong](2026-09-20-deploy-doc-credential-source-wrong.md) | DEPLOY.md | minor | fixed | DEPLOY.md 第 3 步声称「只复制 .credentials.yaml 不够，OPENCODE_GO_API_KEY 走环境变量通道」——与实测相反，会让新机用户白折腾去设一个本不需要的环境变量。 |
 | 2026-09-20 | [2026-09-20-cordis-nonmanaged-entry-false-alarm](2026-09-20-cordis-nonmanaged-entry-false-alarm.md) | DEPLOY.md | minor | fixed | 对比两台机器的 cordis.patch.yml 与组合树，新机少了 `- id: tool-agent-team / disabled: false` 一条，疑似「新机 Agent Teams 被禁用」——实际是功能等价的冗余显式启用，属误报。 |

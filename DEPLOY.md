@@ -151,32 +151,68 @@ pwsh -File .\bootstrap-personal.ps1
 
 ## 第 3 步：用户数据（`%DSH_HOME%` 或 `~/.dsh`）
 
-bootstrap 已重建 `profiles\web\`。还需要**用户数据**（含密钥，不入仓库）：
+bootstrap 已重建 `profiles\web\`。这一步要区分**两个完全不同的维度**——搞混会导致「服务能跑但不是同一套」：
 
-| # | 文件/目录 | 内容 | 新机怎么来 |
+| 维度 | 是什么 | 要不要与旧机一致 |
+|---|---|---|
+| **功能配置** | provider 网关（baseURL / 协议 / 模型目录 / compat）、默认模型、子代理授权清单、权限预设、shell 超时、界面行为、插件覆盖层里的功能项 | ✅ **必须一致**，这才是「同一套 DSH」的判据 |
+| **凭据** | `.credentials.yaml` 里各 Key 的**值**（每台机器自己的账号） | ❌ **不必相同**，新机填自己的即可；但**引用名要齐**，否则对应 provider 起不来 |
+
+### A. 功能配置（必须从旧机带过来）
+
+| # | 文件 | 承载的功能 | 新机怎么来 |
 |---|---|---|---|
-| 1 | `settings.yaml` | 界面/模型/权限等设置 | **推荐直接从旧机复制**（不含密钥）；仓库 `config\settings.yaml` 只是最小骨架（7 个顶层段，约 165 行），**缺**开发机的 `shell`（pwsh 超时）、`subagent-model-selection`（子代理授权模型清单）、`llm-deepseek`（模型目录覆盖）三个命名空间，也不含开发机的模型 provider 通道、超时等配置——照它配出来的**不是**同一套 DSH |
-| 2 | `.credentials.yaml` | **全部 API Key**（`OPENCODE_GO_API_KEY` / `OPENCODE_API_KEY` / `BAI_API_KEY` / `AGNES_API_KEY` / `UNLIMITDS_API_KEY` / `DEEPSEEK_API_KEY`，共 6 条 `refs` + 1 条 GUI 登录记录） | 从旧机复制，或在新机「设置 → 模型」里重新填（会写回该文件）；**永不提交仓库**。它是**明文 YAML、不绑定机器**（无 DPAPI/加密），复制过去即可用 |
-| 3 | `AGENTS.md` | 全局指令底座（本机 AI 协作规则，对所有会话生效） | 从旧机复制 `~/.dsh/AGENTS.md`；或复制仓库 `config\AGENTS-global-template.md` 后按本机路径改写 |
-| 4 | 插件自有凭据 | `github-push\credentials.json`（GitHub PAT）+ `github-push\state.json`（绑定关系）、`server-ssh\state.json`（SSH 服务器列表） | 从旧机复制。**注意**：`state.json` 里的绑定路径是旧机的（如 `E:\DSH\DSH-ops`），新机路径不同时要在面板里改掉，否则推送/SSH 指向不存在的目录 |
-| 5 | （可选）`backups\`、`sessions\`、`storages\` | 历史备份、会话历史 | 需要时从旧机复制；与「同一套 DSH」无关（`sessions` 当前约 159 MB，`storages` 约 1.6 MB） |
+| 1 | `settings.yaml` | **全部 provider 网关与模型目录**（开发机 7 个：`opencode-live` / `opencode-live-anthropic` / `opencode-live-responses` / `opencode` / `agnes` / `bai` / `unlimitds`，含 baseURL、`api` 协议、`harnessSessionHeader`、每模型 contextWindow/maxTokens/compat）、`agent-default-model`（`opencode-live/deepseek-v4.1-flash` + `max`）、`subagent-model-selection`（团队/子代理授权清单）、`permission.defaultPreset`、`agent-presets`、`shell.timeoutMs`、`ui-conversation`、`llm-deepseek` 模型目录 | **必须从旧机复制**。仓库 `config\settings.yaml` 只是 7 段骨架（且**不含** `opencode-live` 这类路由），照它配出来的**不是**同一套 DSH |
+| 2 | `AGENTS.md` | 全局指令底座（工具分工纪律、子代理强弱档策略、DSH 服务纪律…） | 从旧机复制 `~/.dsh/AGENTS.md`；或复制仓库 `config\AGENTS-global-template.md` 后按本机路径改写 |
 
-> **不需要另设环境变量**：所有 `*_API_KEY` 都在第 2 项那个文件里。凭据的解析顺序是
+> `settings.yaml` 里**没有任何密钥值**（只有 `apiKeyEnv: <名字>` 这种引用），所以它可以安全地整份复制、也可以进版本库。
+
+### B. 凭据（每台机器自己的事）
+
+| # | 文件 | 内容 | 新机怎么来 |
+|---|---|---|---|
+| 3 | `.credentials.yaml` | 各 Key 的**值**：`OPENCODE_GO_API_KEY`（`opencode-live*` 三条路由 + `web-search-deepseek` 都用它）、`OPENCODE_API_KEY`、`AGNES_API_KEY`（弱档队友模型）、`BAI_API_KEY`、`UNLIMITDS_API_KEY`、`DEEPSEEK_API_KEY` | **填新机自己的密钥**：在「设置 → 模型」里重填，或直接写这个文件；也可以从旧机复制。**值不必与旧机相同**；**名字必须齐**（缺哪个，哪个 provider 就用不了）。**永不提交仓库**。它是明文 YAML、不绑定机器（无 DPAPI/加密） |
+| 4 | 插件自有凭据 | `github-push\credentials.json`（GitHub PAT）+ `state.json`（绑定关系）、`server-ssh\state.json`（SSH 列表） | 从旧机复制，或在新机重新登录/填写。⚠️ `state.json` 里的绑定路径是旧机的（如 `E:\DSH\DSH-ops`），新机路径不同要在面板里改 |
+
+### C. 可选（与「同一套 DSH」无关）
+
+| # | 目录 | 说明 |
+|---|---|---|
+| 5 | `backups\`、`sessions\`、`storages\` | 历史备份 / 会话历史；`sessions` 当前约 159 MB、`storages` 约 1.6 MB |
+
+> **不需要另设环境变量**：所有 `*_API_KEY` 都在第 3 项那个文件里。凭据解析顺序是
 > **进程环境变量 > `$DSH_HOME/.credentials.yaml` > `$DSH_HOME/.env`**（`credentials-local` 的分层），
 > 开发机三种 OS 环境变量都没设，全部走 `.credentials.yaml`。
-> （2026-09-20 更正：此前本节曾写「只复制 `.credentials.yaml` 不够、还要设 `OPENCODE_GO_API_KEY`
-> 环境变量」——实测不成立，恰恰相反。）
 >
 > **千万不要复制 `profiles\`**：它由第 2 步 bootstrap 按本机重新装配，里面的 `link:` 依赖带盘符
 > （旧机是 `E:\DSH\...`）。把旧机的 `profiles\` 拷过去会让新机指向不存在的路径，插件全部解析失败。
 > 同理不要复制 `.anonymous-user-id`（新机自己生成）。
-
+>
 > 演练/验证时若只想「服务能起来」：`settings.yaml` 用仓库模板即可；`.credentials.yaml` 可暂缺
 > （模型调用会报未配置，但服务本身能启动、插件能加载）。但**缺 `.credentials.yaml` 时
-> `web_search` 工具会直接报错**（不是静默降级），要验证该工具就得把密钥配上。
+> `web_search` 工具会直接报错**（不是静默降级）。
+
+### 怎么确认「功能真的同一套」——`functional-parity.mjs`
+
+复制完不用靠肉眼比对，仓库里带了核对工具（`config/expected-functional.json` 是开发机导出的**功能基线**，
+只含行为配置、不含任何密钥值与机器路径）：
+
+```powershell
+# 在【新机】上执行；DSH_HOME 已指向新机的用户数据目录
+node .\functional-parity.mjs --check
+```
+
+它逐项核对：版本 / 官方锚点 / 补丁条数 / bundle 清单（顺序敏感）/ **每个 provider 的网关、协议、模型目录** /
+默认模型 / **子代理授权清单** / 权限预设 / shell 超时 / settings 顶层段 / 插件目录与中文名表 /
+覆盖层里 `web-search-deepseek` 的功能配置；凭据**只看名字不看值**（缺名字报 WARN 并列出要填哪些）；
+`pythonPath` / `pwshPath` / link 依赖盘符属机器特定项，只提示不判定。
+`一致 N 项 · 不一致 0 项` + 退出码 0 才算功能一致。
+
+> 实测对照：开发机自检 **27 项一致 / 0 不一致**；把 `settings.yaml` 换成仓库骨架后 **11 项不一致、exit 1**，
+> 精确点名缺失的 `opencode-live` / `opencode-live-anthropic` / `opencode-live-responses` / `agnes` 路由与
+> 子代理授权清单。
 >
-> 复制完建议核对一次段数：`(Select-String -Path $env:DSH_HOME\settings.yaml -Pattern '^[A-Za-z_][\w.\-]*:').Count`
-> 应与旧机相同（开发机当前 **10** 段）。
+> 参照机（开发机）日后改了配置，重新导出一份即可：`node .\functional-parity.mjs --export`。
 
 ---
 
@@ -190,6 +226,7 @@ pwsh -File .\start-dsh-web.ps1
 
 | # | 检查 | 命令/期望 |
 |---|---|---|
+| 0 | **功能一致性**（最重要） | `node .\functional-parity.mjs --check` → `一致 N 项 · 不一致 0 项`、退出码 0。这一项才判定「是不是同一套 DSH」：逐项比对 provider 网关/协议/模型目录、默认模型、子代理授权清单、权限预设、shell 超时、bundle 清单等；凭据只看名字不看值 |
 | 1 | 健康检查 | `.\health-check.cmd`（或 `pwsh -NoProfile -File .\health-check.ps1`）→ 全绿；其中「看门狗 G5」段应显示在岗 pid（不在岗会自动复活）。**⚠️ 隔离演练跳过本项**——它按 3080 判存活，且会「复活看门狗」从而拉起正式启动链，同机演练时可能反向干扰正式服务（见下方「隔离演练怎么启动」） |
 | 2 | 插件闸门 | `node .\validate-plugins.mjs` → **11 个挂载插件全 PASS**（退出码 0） |
 | 3 | 中文文案 | `node .\check-plugin-copy.mjs` → `missing 0`（新增插件漏加中文名会在此报红） |
@@ -197,6 +234,7 @@ pwsh -File .\start-dsh-web.ps1
 | 5 | 版本 | `node .\Deepseek_DSH\apps\cli\lib\bin.js --version` → 与开发机一致（当前 `0.1.6-alpha.2`） |
 | 6 | 部署链自检 | `node .\test-standard.mjs` → `all 5 checks hold`（唯一能验证「部署链自身没被改坏」的闸门，含 `.ps1` BOM / `.cmd`+`.bat` 纯 ASCII） |
 | 7 | 页面 | 浏览器打开 `http://127.0.0.1:3080`（用日志里**带 token 的地址**；裸地址 401）→ 个人胶囊行（SSH/推送/余额/版本）与 Agent Teams 均可用 |
+| 8 | 功能抽查（人工，1 分钟） | 在页面上确认：模型下拉里有 `opencode-live` 的模型（含 `deepseek-v4.1-flash`）、默认模型就是它；设置→插件里能看到 Agent Teams 两个包；再跑一次团队/子代理，确认弱档 `agnes-3.0-flash` 与强档 `opencode-live/deepseek-v4.1-flash` 都能派出去 |
 
 > **带 token 地址的访问流程（命令行验证必读）**：裸地址 → **401**；带 token 的地址 → **303 See Other**
 > 并把 token 换成会话 cookie（`Set-Cookie: dsh-auth-…`）；再带该 cookie 请求 `/` → **200** 真实 HTML。
@@ -315,9 +353,15 @@ $env:DSH_OFFICIAL_REF = 'dsh-v0.1.6-alpha.2'
   `...-cua-driver-native` 的 `link:<本机副本>/packages/...`）。**缺 extraDependencies 会让
   `dsh-computer-use` 的 patch 行解析失败**（启动期 `failed to import`，插件被兜底摘掉）。
   这些值 bootstrap 会自动生成。
-- **凭据/密钥不入仓库**：`settings.yaml`、`.credentials.yaml`、`personal.local.json`、
-  `github-push\credentials.json` 均为本机文件；新机必须手工提供。
-- **模型 provider**：settings.yaml 里的 provider 通道是本机特有的，新机按需要调整。
+- **功能配置 vs 凭据（两个维度，别混）**：
+  - **功能配置必须一致**：provider 网关/协议/模型目录、默认模型、子代理授权清单、权限预设、
+    shell 超时等**全部在 `settings.yaml` 里**（`agent-default-model`、`llm-pi-ai.providers`、
+    `subagent-model-selection` …），`AGENTS.md` 则承载行为规则。它们**不含任何密钥值**
+    （只有 `apiKeyEnv: <名字>` 这种引用），所以可以整份复制、也可以进版本库。
+    新机若只用仓库骨架，会**丢掉 `opencode-live` 等全部自建路由**——那就是「能跑但不是同一套」。
+  - **凭据只需名字齐、值随意**：`.credentials.yaml`、`github-push\credentials.json`、
+    `personal.local.json` 属密钥/机器特定文件，**不入仓库**，新机填自己的即可。
+  - 核对手段：`node .\functional-parity.mjs --check`（见第 3 步末），凭据只查名字不查值。
 - **隔离演练**：`DSH_HOME` 被部署链与体检链**全部尊重**——`bootstrap-personal.ps1`、`update-dsh.ps1`、
   `watchdog-dsh.ps1`、`health-check.py`、`reapply-cli.mjs`（经 `dsh-personal-hub`）、`validate-plugins.mjs`、
   `disable-plugin.mjs`、`check-plugin-copy.mjs`；`start-dsh-web.ps1` 自己不拼用户目录，
@@ -389,6 +433,8 @@ if ($dirty -or $ahead) { exit 1 }
   **两个 `lib-*.ps1` 是 dot-source 依赖，漏了脚本会直接报错**）
 - `health-check.py`、`health-check.ps1`、`health-check.cmd`、`validate-plugins.mjs`、
   `check-plugin-copy.mjs`、`test-standard.mjs`（闸门与体检）
+- `functional-parity.mjs` + `config/expected-functional.json`（**功能一致性基线**——缺它新机就无法
+  自动核对「是不是同一套 DSH」；基线文件只含行为配置，不含密钥值，可安全入库）
 - `启动DSH.bat`、`更新DSH.bat`（用户入口——曾经不在远端，导致文档指向的命令不存在）
 - `config/settings.yaml`、`config/AGENTS-global-template.md`（模板）
 - `.gitignore`、`DEPLOY.md`、`ARCHITECTURE.md`（本指南本身）

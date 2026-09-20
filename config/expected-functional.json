@@ -1,0 +1,220 @@
+{
+  "_note": "功能基线：只含行为配置，不含任何密钥值与机器特定路径",
+  "dsh_version": "0.1.6-alpha.2",
+  "official_ref": "dsh-v0.1.6-alpha.2",
+  "patches_count": 24,
+  "restore_count": 7,
+  "bundles": [
+    "@deepseek-ai/dsh-base",
+    "@deepseek-ai/dsh-web-app",
+    "dsh-locale-language",
+    "dsh-deepseek-balance",
+    "dsh-tool-python",
+    "dsh-bug-log",
+    "dsh-personal-hub",
+    "dsh-personal-bar",
+    "dsh-plugin-guide",
+    "dsh-restart-resume",
+    "dsh-server-ssh",
+    "dsh-github-push",
+    "dsh-computer-use",
+    "@deepseek-ai/dsh-experimental-agent-team-profile",
+    "@deepseek-ai/dsh-experimental-agent-team-web-profile"
+  ],
+  "link_plugins": [
+    "@deepseek-ai/dsh-computer-use",
+    "@deepseek-ai/dsh-experimental-computer-use-cua-driver-native",
+    "dsh-bug-log",
+    "dsh-computer-use",
+    "dsh-deepseek-balance",
+    "dsh-github-push",
+    "dsh-locale-language",
+    "dsh-personal-bar",
+    "dsh-personal-hub",
+    "dsh-plugin-guide",
+    "dsh-restart-resume",
+    "dsh-server-ssh",
+    "dsh-tool-python"
+  ],
+  "plugins_on_disk": [
+    "dsh-bug-log",
+    "dsh-computer-use",
+    "dsh-deepseek-balance",
+    "dsh-github-push",
+    "dsh-locale-language",
+    "dsh-opencode-session-id",
+    "dsh-personal-bar",
+    "dsh-personal-hub",
+    "dsh-plugin-guide",
+    "dsh-restart-resume",
+    "dsh-server-ssh",
+    "dsh-tool-python"
+  ],
+  "plugin_copy_keys": [
+    "@deepseek-ai/dsh-acp-app",
+    "@deepseek-ai/dsh-base",
+    "@deepseek-ai/dsh-headless",
+    "@deepseek-ai/dsh-sdk-app",
+    "@deepseek-ai/dsh-sdk-minimal",
+    "@deepseek-ai/dsh-web-app",
+    "dsh-bug-log",
+    "dsh-computer-use",
+    "dsh-deepseek-balance",
+    "dsh-github-push",
+    "dsh-locale-language",
+    "dsh-personal-bar",
+    "dsh-personal-hub",
+    "dsh-plugin-guide",
+    "dsh-restart-resume",
+    "dsh-server-ssh",
+    "dsh-tool-python"
+  ],
+  "settings_sections": [
+    "agent-default-model",
+    "agent-presets",
+    "llm-deepseek",
+    "llm-pi-ai",
+    "permission",
+    "shell",
+    "subagent-model-selection",
+    "ui-conversation",
+    "ui-onboarding",
+    "ui-theme"
+  ],
+  "agent_default_model": {
+    "provider": "opencode-live",
+    "model": "deepseek-v4.1-flash",
+    "reasoningEffort": "max"
+  },
+  "agent_presets_default": "cordis",
+  "permission_default_preset": "danger-full-access",
+  "shell_timeout_ms": 60000,
+  "ui_conversation_busy_enter": "steer",
+  "providers": {
+    "unlimitds": {
+      "api": "openai-completions",
+      "baseURL": "https://unlimitds.chat/v1",
+      "harnessSessionHeader": false,
+      "defaultContextWindow": null,
+      "defaultMaxTokens": null,
+      "models": [
+        "deepseek-v4-flash-search_jail",
+        "deepseek-v4-pro-search_jail",
+        "deepseek-v4-vision_jail"
+      ]
+    },
+    "bai": {
+      "api": "openai-completions",
+      "baseURL": "https://api.b.ai/v1",
+      "harnessSessionHeader": false,
+      "defaultContextWindow": null,
+      "defaultMaxTokens": null,
+      "models": [
+        "glm-5.3-flash",
+        "qwen3.8-flash"
+      ]
+    },
+    "agnes": {
+      "api": "openai-completions",
+      "baseURL": "https://apihub.agnes-ai.cn/v1",
+      "harnessSessionHeader": false,
+      "defaultContextWindow": null,
+      "defaultMaxTokens": null,
+      "models": [
+        "agnes-3.0-flash"
+      ]
+    },
+    "opencode": {
+      "api": null,
+      "baseURL": null,
+      "harnessSessionHeader": true,
+      "defaultContextWindow": null,
+      "defaultMaxTokens": null,
+      "models": [
+        "ling-3.0-flash-fin-free",
+        "mimo-v2.5-free",
+        "muse-spark-1.2-contributor-free",
+        "nemotron-3-ultra-free",
+        "nemotron-3.5-lightning-free"
+      ]
+    },
+    "opencode-live-anthropic": {
+      "api": "anthropic-messages",
+      "baseURL": "https://opencode.ai/zen/go",
+      "harnessSessionHeader": true,
+      "defaultContextWindow": null,
+      "defaultMaxTokens": null,
+      "models": [
+        "minimax-m2.5",
+        "minimax-m2.7",
+        "minimax-m3",
+        "qwen3.6-plus",
+        "qwen3.7-max",
+        "qwen3.7-plus",
+        "qwen3.8-flash",
+        "qwen3.8-max",
+        "union-alpha"
+      ]
+    },
+    "opencode-live-responses": {
+      "api": "openai-responses",
+      "baseURL": "https://opencode.ai/zen/go/v1",
+      "harnessSessionHeader": true,
+      "defaultContextWindow": null,
+      "defaultMaxTokens": null,
+      "models": [
+        "gpt-5.6-luna",
+        "grok-4.5",
+        "grok-4.6",
+        "muse-spark-1.2-contributor",
+        "muse-spark-1.3-contributor"
+      ]
+    },
+    "opencode-live": {
+      "api": "openai-completions",
+      "baseURL": "https://opencode.ai/zen/go/v1",
+      "harnessSessionHeader": true,
+      "defaultContextWindow": 262144,
+      "defaultMaxTokens": 32768,
+      "models": [
+        "deepseek-flash",
+        "deepseek-v4.1-flash",
+        "omen-alpha"
+      ]
+    }
+  },
+  "subagent_model_selection": {
+    "enabled": true,
+    "allowedModels": [
+      "agnes/agnes-3.0-flash",
+      "opencode-live/deepseek-v4.1-flash"
+    ]
+  },
+  "overlay": {
+    "web_search_deepseek": {
+      "baseURL": "https://opencode.ai/zen/go/v1",
+      "apiKeyEnv": "OPENCODE_GO_API_KEY",
+      "model": "deepseek-v4-flash"
+    },
+    "managed_ids": [
+      "pwsh-sandbox",
+      "tool-python",
+      "web-search-deepseek"
+    ]
+  },
+  "required_credential_refs": [
+    "AGNES_API_KEY",
+    "BAI_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "OPENCODE_API_KEY",
+    "OPENCODE_GO_API_KEY",
+    "UNLIMITDS_API_KEY"
+  ],
+  "_machine_specific": {
+    "note": "以下只用于提示，不参与功能一致性判定",
+    "pythonPath": "C:\\Users\\Administrator\\AppData\\Local\\Python\\pythoncore-3.14-64\\python.exe",
+    "pwshPath": "E:\\GongJu\\7\\pwsh.exe"
+  },
+  "generated_at": "2026-09-20T10:03:50.119Z",
+  "generated_on": "WIN-NP0CSS5OPMB"
+}
